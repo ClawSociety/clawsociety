@@ -1,0 +1,158 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Design tokens
+   --------------------------------------------------------------------------- */
+
+:root {
+  --bg-primary:  #0a0a0a;
+  --bg-card:     #1a1a2e;
+  --accent:      #00ff88;
+  --background:  #0a0a0a;
+  --foreground:  #ededed;
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+   --------------------------------------------------------------------------- */
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--bg-primary);
+  font-family:
+    var(--font-jetbrains-mono),
+    'JetBrains Mono',
+    ui-monospace,
+    'Cascadia Code',
+    'Fira Code',
+    monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---------------------------------------------------------------------------
+   Selection
+   --------------------------------------------------------------------------- */
+
+::selection {
+  background: rgba(0, 255, 136, 0.25);
+  color: #fff;
+}
+
+::-moz-selection {
+  background: rgba(0, 255, 136, 0.25);
+  color: #fff;
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbar — webkit (Chrome/Safari/Edge)
+   --------------------------------------------------------------------------- */
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 136, 0.35);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Subtle grid background pattern (decorative, non-intrusive)
+   --------------------------------------------------------------------------- */
+
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ---------------------------------------------------------------------------
+   Tailwind utilities
+   --------------------------------------------------------------------------- */
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Claw Society — shared animations
+   --------------------------------------------------------------------------- */
+
+/* Skeleton loading pulse for grid tiles */
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.skeleton-pulse {
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+/* Subtle border glow throb for available (unclaimed) tiles */
+@keyframes available-throb {
+  0%,
+  100% {
+    box-shadow: 0 0 4px 1px rgba(0, 255, 136, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 10px 3px rgba(0, 255, 136, 0.5);
+  }
+}
+
+.tile-available {
+  animation: available-throb 2.4s ease-in-out infinite;
+}
+
+/* Neon text glow — apply to hero headline */
+@keyframes neon-flicker {
+  0%, 95%, 100% {
+    text-shadow:
+      0 0 4px rgba(0, 255, 136, 0.8),
+      0 0 12px rgba(0, 255, 136, 0.6),
+      0 0 28px rgba(0, 255, 136, 0.4);
+  }
+  96% {
+    text-shadow: none;
+  }
+}
+
+.neon-text {
+  text-shadow:
+    0 0 4px rgba(0, 255, 136, 0.8),
+    0 0 12px rgba(0, 255, 136, 0.6),
+    0 0 28px rgba(0, 255, 136, 0.4);
+}
+
+.neon-text-flicker {
+  animation: neon-flicker 8s ease-in-out infinite;
+}
