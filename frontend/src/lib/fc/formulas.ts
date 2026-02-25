@@ -131,8 +131,8 @@ export function attackDefense(team: TeamData): { attack: number; defense: number
   const avgEff = totalEff / 5;
   const synergy = synergyBonusPct(team.maxSameOwner) / 100;
 
-  let attack = (fwdEff * 0.40 + midEff * 0.35 + avgEff * 0.25) * (1 + synergy);
-  let defense = (gkEff * 0.40 + defEff * 0.35 + avgEff * 0.25) * (1 + synergy);
+  const attack = (fwdEff * 0.40 + midEff * 0.35 + avgEff * 0.25) * (1 + synergy);
+  const defense = (gkEff * 0.40 + defEff * 0.35 + avgEff * 0.25) * (1 + synergy);
 
   return { attack, defense };
 }
@@ -176,9 +176,9 @@ export function simulateMatch(
   const awayFormMod = formationModifiers(away.formation, home.formation);
 
   let effHomeAtk = homeAtk * homeFormMod.atkMod;
-  let effHomeDef = homeDef * homeFormMod.defMod;
+  const effHomeDef = homeDef * homeFormMod.defMod;
   let effAwayAtk = awayAtk * awayFormMod.atkMod;
-  let effAwayDef = awayDef * awayFormMod.defMod;
+  const effAwayDef = awayDef * awayFormMod.defMod;
 
   // Apply noise
   const noiseH = deriveNoise(vrfSeed, 'teamA');

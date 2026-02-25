@@ -4,15 +4,14 @@ import { useState, useMemo } from 'react';
 import { useAccount, usePublicClient } from 'wagmi';
 import { decodeEventLog } from 'viem';
 import type { Seat } from '@/lib/types';
-import { formatETH, shortenAddress, ZERO_ADDRESS } from '@/lib/utils';
-import { FORMATION_NAMES, CLOUDFC_ABI, formationFromUint8 } from '@/lib/cloudfc-contract';
+import { formatETH } from '@/lib/utils';
+import { FORMATION_NAMES, CLOUDFC_ABI } from '@/lib/cloudfc-contract';
 import {
   useMyPlayers, useCloudFCMatches, useCloudFCRecord,
   useClaimable, useCloudFCActions,
-  type CloudFCRecord,
 } from '@/hooks/useCloudFC';
 import type { CloudFCMatch, CloudFCPlayer, Formation } from '@/lib/fc/types';
-import { effectiveRating, playerRating } from '@/lib/fc/formulas';
+import { playerRating } from '@/lib/fc/formulas';
 import { PitchCanvas } from './PitchCanvas';
 import { LootboxPanel } from './LootboxPanel';
 import { CardGallery } from './CardGallery';
@@ -74,26 +73,6 @@ function PlayerCard({
   );
 }
 
-function StatBar({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex items-center gap-1">
-      <span className="w-6 text-[8px] text-gray-500">{label}</span>
-      <div className="h-1.5 flex-1 rounded-full bg-white/10">
-        <div
-          className="h-full rounded-full transition-all"
-          style={{
-            width: `${value}%`,
-            backgroundColor: statColor(value),
-          }}
-        />
-      </div>
-      <span className="w-5 text-right text-[8px]" style={{ color: statColor(value) }}>
-        {value}
-      </span>
-    </div>
-  );
-}
-
 function RecordBadge({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div className="text-center">
@@ -105,13 +84,11 @@ function RecordBadge({ label, value, color }: { label: string; value: number; co
 
 function MatchRow({
   match,
-  myAddress,
   onAccept,
   onCancel,
   onView,
 }: {
   match: CloudFCMatch;
-  myAddress?: string;
   onAccept?: (m: CloudFCMatch) => void;
   onCancel?: (m: CloudFCMatch) => void;
   onView?: (m: CloudFCMatch) => void;
@@ -178,6 +155,7 @@ interface FCPanelProps {
   seats: Seat[];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function FCPanel({ seats }: FCPanelProps) {
   const { address } = useAccount();
   const [tab, setTab] = useState<Tab>('squad');
@@ -185,8 +163,6 @@ export function FCPanel({ seats }: FCPanelProps) {
   const [formation, setFormation] = useState<Formation>('balanced');
   const [stakeInput, setStakeInput] = useState('');
   const [viewingMatch, setViewingMatch] = useState<CloudFCMatch | null>(null);
-  const [activeSquadId, setActiveSquadId] = useState<bigint | null>(null);
-
   const publicClient = usePublicClient();
   const { players: myPlayers } = useMyPlayers(address);
   const { openMatches, resolvedMatches, refetch } = useCloudFCMatches();
@@ -491,7 +467,6 @@ export function FCPanel({ seats }: FCPanelProps) {
                   <MatchRow
                     key={m.id}
                     match={m}
-                    myAddress={address}
                     onAccept={handleAccept}
                     onCancel={handleCancel}
                   />
@@ -513,7 +488,6 @@ export function FCPanel({ seats }: FCPanelProps) {
                   <MatchRow
                     key={m.id}
                     match={m}
-                    myAddress={address}
                     onView={setViewingMatch}
                   />
                 ))}

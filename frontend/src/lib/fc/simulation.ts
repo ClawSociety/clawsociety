@@ -1,9 +1,8 @@
-import { mulberry32, rngInt, rngFloat, rngPick } from './prng';
+import { mulberry32, rngInt, rngFloat } from './prng';
 import type {
-  MatchEvent, MatchTimeline, Vec2, Team, PlayerStats, Formation, TeamData,
+  MatchEvent, MatchTimeline, Vec2, Team, PlayerStats, Formation,
 } from './types';
 import { HOME_FORMATION, AWAY_FORMATION, FORMATION_LAYOUTS } from './types';
-import { effectiveRating, attackDefense, formationModifiers, fatigueMultiplier, poissonSample, deriveNoise, formationPositions } from './formulas';
 
 // ─────────────────── Helpers ────────────────────────────────
 
@@ -59,9 +58,6 @@ function weightedPickByStat(
 
 const NUM_PHASES = 10;
 const PHASE_DUR = 1 / NUM_PHASES;
-const BASE_LAMBDA = 1.3;
-const LAMBDA_MIN = 0.3;
-const LAMBDA_MAX = 3.5;
 
 export interface GenerateTimelineOptions {
   homeGoals: number;

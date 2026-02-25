@@ -10,11 +10,11 @@ import {
 import {
   CLOUDFC_ADDRESS, CLOUDFC_PLAYERS_ADDRESS,
   CLOUDFC_ABI, PLAYERS_ABI,
-  formationFromUint8, formationToUint8,
+  formationToUint8,
 } from '@/lib/cloudfc-contract';
 import { ZERO_ADDRESS } from '@/lib/utils';
 import { parseEther } from 'viem';
-import type { CloudFCMatch, CloudFCSquad, CloudFCPlayer, PlayerStats, Formation } from '@/lib/fc/types';
+import type { CloudFCMatch, CloudFCPlayer, Formation } from '@/lib/fc/types';
 
 // ─────────────────────── Config ───────────────────────────────
 

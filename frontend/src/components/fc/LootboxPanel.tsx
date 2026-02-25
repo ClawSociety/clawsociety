@@ -9,7 +9,6 @@ import type { CloudFCPlayer, PlayerStats } from '@/lib/fc/types';
 import {
   playerTier, playerName, cardImageUrl,
   TIER_COLORS, TIER_LABELS, TIER_STARS,
-  type Tier,
 } from '@/lib/fc/playerNames';
 
 // ─────────────────── Helpers ─────────────────────────────────

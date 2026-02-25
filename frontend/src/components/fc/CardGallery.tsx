@@ -87,7 +87,6 @@ function GalleryCard({ tier, index, onClick }: GalleryCardProps) {
         borderColor: colors.border,
         background: `linear-gradient(180deg, ${colors.bg} 0%, #0d0d1a 100%)`,
         boxShadow: `0 0 0 0 ${colors.glow}`,
-        focusRingColor: colors.border,
       }}
       onMouseEnter={e => {
         (e.currentTarget as HTMLElement).style.boxShadow = `0 0 18px ${colors.glow}`;

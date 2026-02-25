@@ -9,9 +9,7 @@ import {
 } from 'wagmi';
 import {
   CLOUDFC_LOOTBOX_ADDRESS,
-  CLOUDFC_PLAYERS_ADDRESS,
   LOOTBOX_ABI,
-  PLAYERS_ABI,
 } from '@/lib/cloudfc-contract';
 import { ZERO_ADDRESS } from '@/lib/utils';
 
@@ -73,7 +71,7 @@ export function useLootbox(address?: string) {
 
   // ─── Write: openPack ───
   const { data: hash, writeContractAsync, isPending, reset } = useWriteContract();
-  const { isSuccess, data: receipt } = useWaitForTransactionReceipt({ hash });
+  const { isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const openPack = useCallback(async () => {
     reset();
