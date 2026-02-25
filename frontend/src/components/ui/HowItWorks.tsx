@@ -507,7 +507,14 @@ export function HowItWorks() {
               letterSpacing: '0.05em',
             }}
           >
-            Contract: 0xD7A01085aC48cBBa903934b3c8F0D7700e054Baa on Base Mainnet
+            <a
+              href="https://basescan.org/address/0xD7A01085aC48cBBa903934b3c8F0D7700e054Baa"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#00ff88', textDecoration: 'underline', textUnderlineOffset: '3px' }}
+            >
+              Verified Contract on Basescan
+            </a>
           </div>
         </div>
       </div>
