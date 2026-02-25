@@ -26,6 +26,7 @@ import { ConnectButton } from '@/components/ui/ConnectButton';
 import { ProfilePanel } from '@/components/ui/ProfilePanel';
 import { HowItWorks } from '@/components/ui/HowItWorks';
 import { AgentSkillModal, AgentSkillButton } from '@/components/ui/AgentSkillModal';
+import { ActivityTicker } from '@/components/ui/ActivityTicker';
 import { useGridState } from '@/hooks/useGridState';
 import { useSeatAction } from '@/hooks/useSeatAction';
 import { useClaimFees } from '@/hooks/useClaimFees';
@@ -279,6 +280,9 @@ export default function HomePage() {
     >
       {/* Server fund progress bar — pinned to the very top */}
       <ServerFundBar />
+
+      {/* Live activity ticker */}
+      <ActivityTicker />
 
       {/* Header row */}
       <header className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
