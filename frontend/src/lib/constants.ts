@@ -2,7 +2,6 @@ import { BuildingConfig } from './types';
 
 export const TOTAL_SEATS = 100;
 export const GRID_SIZE = 10;
-export const USDC_DECIMALS = 6;
 export const ONE_WEEK = 604800;
 export const TAX_RATE_BPS = 500;
 export const BUYOUT_FEE_BPS = 2000;

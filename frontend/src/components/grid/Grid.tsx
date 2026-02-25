@@ -67,7 +67,9 @@ const Grid = memo(function Grid({ selectedSeat, onSelectSeat }: GridProps) {
 
   const wrapperStyle: CSSProperties = {
     perspective: '1200px',
-    perspectiveOrigin: '50% 0%',
+    perspectiveOrigin: '50% 30%',
+    overflow: 'hidden',
+    paddingBottom: '12px',
   };
 
   const gridStyle: CSSProperties = {
@@ -77,8 +79,8 @@ const Grid = memo(function Grid({ selectedSeat, onSelectSeat }: GridProps) {
     width: '100%',
     // Subtle perspective tilt — rotate slightly back so it reads as a
     // bird's-eye city view. Reduce on mobile via a CSS variable fallback.
-    transform: 'rotateX(6deg)',
-    transformOrigin: 'top center',
+    transform: 'rotateX(5deg)',
+    transformOrigin: 'center center',
     transformStyle: 'preserve-3d',
   };
 

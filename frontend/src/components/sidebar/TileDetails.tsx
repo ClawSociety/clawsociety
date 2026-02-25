@@ -14,7 +14,7 @@ import { useState } from 'react';
 import { Seat } from '@/lib/types';
 import { BUILDING_CONFIGS } from '@/lib/constants';
 import {
-  formatUSDC,
+  formatETH,
   shortenAddress,
   calculateTaxPerWeek,
   calculateRunway,
@@ -22,6 +22,19 @@ import {
   ZERO_ADDRESS,
 } from '@/lib/utils';
 import { useAccount } from 'wagmi';
+
+/** Read a stored nickname for any address directly from localStorage. */
+function readNickname(address: string): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    const raw = window.localStorage.getItem(`claw_profile_${address.toLowerCase()}`);
+    if (!raw) return '';
+    const parsed = JSON.parse(raw) as { nickname?: string };
+    return typeof parsed.nickname === 'string' ? parsed.nickname : '';
+  } catch {
+    return '';
+  }
+}
 
 interface TileDetailsProps {
   seat: Seat;
@@ -210,23 +223,23 @@ export function TileDetails({ seat, seatId, onAction }: TileDetailsProps) {
 
           <div className="mt-2 space-y-2">
             <ActionInput
-              label="Your Price (USDC)"
+              label="Your Price (ETH)"
               value={claimPrice}
               onChange={setClaimPrice}
-              placeholder="e.g. 100"
+              placeholder="e.g. 0.1"
               accentColor={building.color}
             />
             <ActionInput
-              label="Initial Deposit (USDC)"
+              label="Initial Deposit (ETH)"
               value={claimDeposit}
               onChange={setClaimDeposit}
-              placeholder="e.g. 500"
+              placeholder="e.g. 0.5"
               accentColor={building.color}
             />
 
             {claimPrice && (
               <p className="text-[10px] text-gray-500">
-                Tax: {formatUSDC(calculateTaxPerWeek(BigInt(Math.floor(parseFloat(claimPrice || '0') * 1e6))))} /
+                Tax: {formatETH(calculateTaxPerWeek(BigInt(Math.floor(parseFloat(claimPrice || '0') * 1e18))))} /
                 week
               </p>
             )}
@@ -247,12 +260,16 @@ export function TileDetails({ seat, seatId, onAction }: TileDetailsProps) {
       {isOtherOwner && (
         <>
           <div className="mb-3 space-y-0.5">
-            <StatRow label="Owner" value={shortenAddress(seat.holder)} valueColor="#a0aec0" />
-            <StatRow label="Price" value={formatUSDC(seat.price)} valueColor={building.color} />
-            <StatRow label="Deposit" value={formatUSDC(seat.deposit)} />
+            <StatRow
+              label="Owner"
+              value={readNickname(seat.holder) || shortenAddress(seat.holder)}
+              valueColor="#a0aec0"
+            />
+            <StatRow label="Price" value={formatETH(seat.price)} valueColor={building.color} />
+            <StatRow label="Deposit" value={formatETH(seat.deposit)} />
             <StatRow
               label="Tax / Week"
-              value={formatUSDC(taxPerWeek)}
+              value={formatETH(taxPerWeek)}
               valueColor="#ff8855"
             />
             <StatRow label="Runway" value={runway ?? '-'} valueColor="#ffd700" />
@@ -262,17 +279,17 @@ export function TileDetails({ seat, seatId, onAction }: TileDetailsProps) {
 
           <div className="mt-2 space-y-2">
             <ActionInput
-              label="Your New Price (USDC)"
+              label="Your New Price (ETH)"
               value={buyoutPrice}
               onChange={setBuyoutPrice}
-              placeholder="e.g. 200"
+              placeholder="e.g. 0.2"
               accentColor="#ff0055"
             />
             <ActionInput
-              label="Your Deposit (USDC)"
+              label="Your Deposit (ETH)"
               value={buyoutDeposit}
               onChange={setBuyoutDeposit}
-              placeholder="e.g. 600"
+              placeholder="e.g. 0.5"
               accentColor="#ff0055"
             />
 
@@ -288,16 +305,16 @@ export function TileDetails({ seat, seatId, onAction }: TileDetailsProps) {
                 <div className="space-y-0.5 text-gray-400">
                   <div className="flex justify-between">
                     <span>Pays seller</span>
-                    <span style={{ color: '#e2e8f0' }}>{formatUSDC(buyoutCost.sellerGets)}</span>
+                    <span style={{ color: '#e2e8f0' }}>{formatETH(buyoutCost.sellerGets)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Protocol fee (20%)</span>
-                    <span style={{ color: '#ff8855' }}>{formatUSDC(buyoutCost.fee)}</span>
+                    <span style={{ color: '#ff8855' }}>{formatETH(buyoutCost.fee)}</span>
                   </div>
                   <div className="flex justify-between border-t border-white/10 pt-0.5">
                     <span className="font-bold text-white">Total</span>
                     <span className="font-bold" style={{ color: '#ff0055' }}>
-                      {formatUSDC(buyoutCost.total)}
+                      {formatETH(buyoutCost.total)}
                     </span>
                   </div>
                 </div>
@@ -328,11 +345,11 @@ export function TileDetails({ seat, seatId, onAction }: TileDetailsProps) {
 
           {/* Current stats */}
           <div className="mb-3 space-y-0.5">
-            <StatRow label="Price" value={formatUSDC(seat.price)} valueColor={building.color} />
-            <StatRow label="Deposit" value={formatUSDC(seat.deposit)} />
+            <StatRow label="Price" value={formatETH(seat.price)} valueColor={building.color} />
+            <StatRow label="Deposit" value={formatETH(seat.deposit)} />
             <StatRow
               label="Tax / Week"
-              value={formatUSDC(taxPerWeek)}
+              value={formatETH(taxPerWeek)}
               valueColor="#ff8855"
             />
             <StatRow label="Runway" value={runway ?? '-'} valueColor="#ffd700" />
@@ -343,10 +360,10 @@ export function TileDetails({ seat, seatId, onAction }: TileDetailsProps) {
           <div className="mt-2 mb-3 flex gap-2">
             <div className="flex-1">
               <ActionInput
-                label="New Price (USDC)"
+                label="New Price (ETH)"
                 value={newPrice}
                 onChange={setNewPrice}
-                placeholder={formatUSDC(seat.price).replace('$', '')}
+                placeholder={formatETH(seat.price).replace(' ETH', '')}
                 accentColor={building.color}
               />
             </div>
@@ -366,10 +383,10 @@ export function TileDetails({ seat, seatId, onAction }: TileDetailsProps) {
           <div className="mt-2 mb-1 flex gap-2">
             <div className="flex-1">
               <ActionInput
-                label="Add (USDC)"
+                label="Add (ETH)"
                 value={addAmt}
                 onChange={setAddAmt}
-                placeholder="e.g. 100"
+                placeholder="e.g. 0.1"
                 accentColor="#00ff88"
               />
             </div>
@@ -386,10 +403,10 @@ export function TileDetails({ seat, seatId, onAction }: TileDetailsProps) {
           <div className="mb-3 flex gap-2">
             <div className="flex-1">
               <ActionInput
-                label="Withdraw (USDC)"
+                label="Withdraw (ETH)"
                 value={withdrawAmt}
                 onChange={setWithdrawAmt}
-                placeholder="e.g. 50"
+                placeholder="e.g. 0.05"
                 accentColor="#ffd700"
               />
             </div>

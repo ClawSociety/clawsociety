@@ -6,11 +6,13 @@
  * Layout (desktop):
  *   ┌──────────────────────────────────────────────────────┐
  *   │ ServerFundBar (full width)                           │
- *   │ Header row: CLAW SOCIETY title · ConnectButton       │
+ *   │ Header row: logo + CLAW SOCIETY · Profile/Connect    │
  *   │ Subtitle                                             │
  *   ├──────────────────────┬───────────────────────────────┤
  *   │ Grid (~65%)          │ Sidebar (~35%)                │
- *   └──────────────────────┴───────────────────────────────┘
+ *   ├──────────────────────┴───────────────────────────────┤
+ *   │ HowItWorks (full width, collapsible)                 │
+ *   └──────────────────────────────────────────────────────┘
  *
  * Mobile: Grid stacked above Sidebar, full width.
  */
@@ -21,17 +23,19 @@ import { Grid } from '@/components/grid/Grid';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { ServerFundBar } from '@/components/ui/ServerFundBar';
 import { ConnectButton } from '@/components/ui/ConnectButton';
+import { ProfilePanel } from '@/components/ui/ProfilePanel';
+import { HowItWorks } from '@/components/ui/HowItWorks';
 import { useGridState } from '@/hooks/useGridState';
 import { useSeatAction } from '@/hooks/useSeatAction';
 import { useClaimFees } from '@/hooks/useClaimFees';
-import { parseUSDC, ZERO_ADDRESS } from '@/lib/utils';
+import { parseETHInput, ZERO_ADDRESS } from '@/lib/utils';
 import Image from 'next/image';
 
 // ---------------------------------------------------------------------------
 // Transaction status toast
 // ---------------------------------------------------------------------------
 
-type TxStatus = 'idle' | 'approving' | 'pending' | 'confirming' | 'success' | 'error';
+type TxStatus = 'idle' | 'pending' | 'confirming' | 'success' | 'error';
 
 interface StatusToastProps {
   status: TxStatus;
@@ -44,7 +48,6 @@ function StatusToast({ status, errorMessage, onDismiss }: StatusToastProps) {
 
   const config: Record<TxStatus, { label: string; color: string; bg: string; border: string }> = {
     idle:       { label: '',                          color: '#fff',     bg: '#1a1a2e', border: '#ffffff22' },
-    approving:  { label: 'Approving USDC...',         color: '#00ffff', bg: '#0d1a2e', border: '#00ffff33' },
     pending:    { label: 'Transaction sent...',       color: '#ffd700', bg: '#1a1500', border: '#ffd70033' },
     confirming: { label: 'Confirming on-chain...',    color: '#ff8855', bg: '#1a0d00', border: '#ff885533' },
     success:    { label: 'Transaction confirmed!',    color: '#00ff88', bg: '#001a0d', border: '#00ff8844' },
@@ -67,7 +70,7 @@ function StatusToast({ status, errorMessage, onDismiss }: StatusToastProps) {
       }}
     >
       {/* Spinner for in-progress states */}
-      {(status === 'approving' || status === 'pending' || status === 'confirming') && (
+      {(status === 'pending' || status === 'confirming') && (
         <span
           aria-hidden="true"
           className="inline-block h-3 w-3 shrink-0 animate-spin rounded-full border-2"
@@ -179,17 +182,17 @@ export default function HomePage() {
       if (selectedSeat === null) return;
 
       const id = BigInt(selectedSeat);
-      // Helper: parse a human-readable USDC dollar string to bigint (6 decimals)
-      const toUSDC = (v: string) => parseUSDC(v || '0');
+      // Helper: parse a human-readable ETH string to bigint (18 decimals)
+      const toETH = (v: string) => parseETHInput(v || '0');
 
       try {
         setTxError(undefined);
-        setTxStatus('approving');
+        setTxStatus('pending');
 
         switch (action) {
           case 'claim': {
-            const price = toUSDC(params.price ?? '0');
-            const deposit = toUSDC(params.deposit ?? '0');
+            const price = toETH(params.price ?? '0');
+            const deposit = toETH(params.deposit ?? '0');
             await claimSeat(id, price, deposit);
             break;
           }
@@ -197,8 +200,8 @@ export default function HomePage() {
           case 'buyout': {
             const currentSeat = seats[selectedSeat];
             if (!currentSeat) break;
-            const newPrice = toUSDC(params.price ?? '0');
-            const deposit = toUSDC(params.deposit ?? '0');
+            const newPrice = toETH(params.price ?? '0');
+            const deposit = toETH(params.deposit ?? '0');
             // maxPrice = current listing price acts as a slippage guard
             const maxPrice = currentSeat.price;
             // payment must cover the buyout price plus the buyer's new deposit
@@ -208,19 +211,19 @@ export default function HomePage() {
           }
 
           case 'setPrice': {
-            const price = toUSDC(params.price ?? '0');
+            const price = toETH(params.price ?? '0');
             await setPrice(id, price);
             break;
           }
 
           case 'addDeposit': {
-            const amount = toUSDC(params.amount ?? '0');
+            const amount = toETH(params.amount ?? '0');
             await addDeposit(id, amount);
             break;
           }
 
           case 'withdrawDeposit': {
-            const amount = toUSDC(params.amount ?? '0');
+            const amount = toETH(params.amount ?? '0');
             await withdrawDeposit(id, amount);
             break;
           }
@@ -288,31 +291,40 @@ export default function HomePage() {
             priority
           />
           <div className="min-w-0">
-          <h1
-            className="neon-text-flicker font-mono font-extrabold uppercase"
-            style={{
-              color: '#00ff88',
-              fontSize: 'clamp(1.1rem, 3vw, 1.6rem)',
-              letterSpacing: '0.2em',
-            }}
-          >
-            CLAW SOCIETY
-          </h1>
-          <p
-            className="mt-0.5 font-mono"
-            style={{
-              fontSize: 'clamp(0.6rem, 1.5vw, 0.75rem)',
-              color: 'rgba(160,160,200,0.6)',
-              letterSpacing: '0.05em',
-            }}
-          >
-            100 seats.&nbsp; Harberger-taxed.&nbsp; ETH from every trade.
-          </p>
+            <h1
+              className="neon-text-flicker font-mono font-extrabold uppercase"
+              style={{
+                color: '#00ff88',
+                fontSize: 'clamp(1.1rem, 3vw, 1.6rem)',
+                letterSpacing: '0.2em',
+              }}
+            >
+              CLAW SOCIETY
+            </h1>
+            <p
+              className="mt-0.5 font-mono"
+              style={{
+                fontSize: 'clamp(0.6rem, 1.5vw, 0.75rem)',
+                color: 'rgba(160,160,200,0.6)',
+                letterSpacing: '0.05em',
+              }}
+            >
+              100 seats.&nbsp; Harberger-taxed.&nbsp; ETH from every trade.
+            </p>
           </div>
         </div>
 
-        <div className="ml-4 shrink-0">
-          <ConnectButton />
+        {/* Right side: profile panel when connected, connect button when not */}
+        <div className="ml-4 shrink-0 flex items-center gap-2">
+          {address ? (
+            <ProfilePanel
+              address={address}
+              seats={seats}
+              totalPendingFees={totalPending}
+            />
+          ) : (
+            <ConnectButton />
+          )}
         </div>
       </header>
 
@@ -341,14 +353,14 @@ export default function HomePage() {
 
       {/* Body: Grid + Sidebar */}
       <main
-        className="flex flex-1 flex-col gap-4 px-4 pb-8 sm:px-6 lg:flex-row lg:items-start lg:gap-6"
+        className="flex flex-1 flex-col gap-4 px-4 pb-4 sm:px-6 lg:flex-row lg:items-start lg:gap-6"
         style={{ minHeight: 0 }}
       >
         {/* Grid — ~65% on large screens */}
         <section
           aria-label="City grid"
           className="w-full lg:w-[65%]"
-          style={{ minWidth: 0 }}
+          style={{ minWidth: 0, overflow: 'hidden' }}
         >
           <Grid
             selectedSeat={selectedSeat}
@@ -369,6 +381,11 @@ export default function HomePage() {
           />
         </section>
       </main>
+
+      {/* How It Works — full width, collapsible, below the grid */}
+      <div className="px-4 pb-8 sm:px-6">
+        <HowItWorks />
+      </div>
 
       {/* Transaction status toast */}
       <StatusToast

@@ -1,18 +1,18 @@
 'use client';
 
 /**
- * PriceTag — compact USDC price display with optional multiplier badge.
+ * PriceTag — compact ETH price display with optional multiplier badge.
  *
  * Usage:
- *   <PriceTag price={1000000n} />
- *   <PriceTag price={2500000n} multiplier={1.8} />
+ *   <PriceTag price={100000000000000000n} />
+ *   <PriceTag price={250000000000000000n} multiplier={1.8} />
  *
  * Props:
- *   price      — raw USDC amount as bigint (6-decimal precision)
+ *   price      — raw ETH amount as bigint (18-decimal precision, wei)
  *   multiplier — optional Harberger building multiplier (e.g. 1.8 for Bank)
  */
 
-import { formatUSDC } from '@/lib/utils';
+import { formatETH } from '@/lib/utils';
 
 interface PriceTagProps {
   price: bigint;
@@ -20,7 +20,7 @@ interface PriceTagProps {
 }
 
 export function PriceTag({ price, multiplier }: PriceTagProps) {
-  const formatted = formatUSDC(price);
+  const formatted = formatETH(price);
 
   return (
     <span className="inline-flex items-center gap-1.5">

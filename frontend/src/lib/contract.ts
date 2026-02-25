@@ -4,7 +4,6 @@ export const MANAGER_ABI = [
   {
     type: 'constructor',
     inputs: [
-      { name: '_usdc', type: 'address', internalType: 'address' },
       { name: '_protocolFeeReceiver', type: 'address', internalType: 'address' },
       { name: '_creatorFeeReceiver', type: 'address', internalType: 'address' },
     ],
@@ -67,13 +66,6 @@ export const MANAGER_ABI = [
   {
     type: 'function',
     name: 'SERVER_FUND_BPS',
-    inputs: [],
-    outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'SERVER_FUND_GOAL',
     inputs: [],
     outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
     stateMutability: 'view',
@@ -194,13 +186,6 @@ export const MANAGER_ABI = [
   },
   {
     type: 'function',
-    name: 'usdc',
-    inputs: [],
-    outputs: [{ name: '', type: 'address', internalType: 'contract IERC20' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'owner',
     inputs: [],
     outputs: [{ name: '', type: 'address', internalType: 'address' }],
@@ -241,10 +226,9 @@ export const MANAGER_ABI = [
     inputs: [
       { name: 'seatId', type: 'uint256', internalType: 'uint256' },
       { name: 'price', type: 'uint256', internalType: 'uint256' },
-      { name: 'depositAmount', type: 'uint256', internalType: 'uint256' },
     ],
     outputs: [],
-    stateMutability: 'nonpayable',
+    stateMutability: 'payable',
   },
   {
     type: 'function',
@@ -253,10 +237,9 @@ export const MANAGER_ABI = [
       { name: 'seatId', type: 'uint256', internalType: 'uint256' },
       { name: 'newPrice', type: 'uint256', internalType: 'uint256' },
       { name: 'maxPrice', type: 'uint256', internalType: 'uint256' },
-      { name: 'payment', type: 'uint256', internalType: 'uint256' },
     ],
     outputs: [],
-    stateMutability: 'nonpayable',
+    stateMutability: 'payable',
   },
   {
     type: 'function',
@@ -275,7 +258,7 @@ export const MANAGER_ABI = [
       },
     ],
     outputs: [],
-    stateMutability: 'nonpayable',
+    stateMutability: 'payable',
   },
   {
     type: 'function',
@@ -292,10 +275,9 @@ export const MANAGER_ABI = [
     name: 'addDeposit',
     inputs: [
       { name: 'seatId', type: 'uint256', internalType: 'uint256' },
-      { name: 'amount', type: 'uint256', internalType: 'uint256' },
     ],
     outputs: [],
-    stateMutability: 'nonpayable',
+    stateMutability: 'payable',
   },
   {
     type: 'function',
@@ -509,11 +491,6 @@ export const MANAGER_ABI = [
   { type: 'error', name: 'PriceCooldown', inputs: [] },
   { type: 'error', name: 'PriceTooLow', inputs: [] },
   { type: 'error', name: 'ReentrancyGuardReentrantCall', inputs: [] },
-  {
-    type: 'error',
-    name: 'SafeERC20FailedOperation',
-    inputs: [{ name: 'token', type: 'address', internalType: 'address' }],
-  },
   { type: 'error', name: 'SeatEmpty', inputs: [] },
   { type: 'error', name: 'SeatOccupied', inputs: [] },
   { type: 'error', name: 'SlippageExceeded', inputs: [] },

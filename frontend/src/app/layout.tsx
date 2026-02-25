@@ -13,10 +13,29 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'Claw Society',
   description: 'Tokenized city grid on Base — 100 Harberger-taxed seats earning ETH from every trade',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
   openGraph: {
     title: 'Claw Society',
     description: '100 seats. Harberger-taxed. ETH from every trade.',
     type: 'website',
+    url: 'https://clawsociety.fun',
+    images: [
+      {
+        url: '/logo.png',
+        width: 512,
+        height: 512,
+        alt: 'Claw Society',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Claw Society',
+    description: '100 seats. Harberger-taxed. ETH from every trade.',
+    images: ['/logo.png'],
   },
 };
 

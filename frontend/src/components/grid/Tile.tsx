@@ -16,7 +16,20 @@
 import { useState, useCallback, CSSProperties } from 'react';
 import { Seat, SeatStatus } from '@/lib/types';
 import { BUILDING_CONFIGS } from '@/lib/constants';
-import { formatUSDC, shortenAddress, ZERO_ADDRESS } from '@/lib/utils';
+import { formatETH, shortenAddress, ZERO_ADDRESS } from '@/lib/utils';
+
+/** Read a stored nickname for any address directly from localStorage (no React state needed). */
+function readNickname(address: string): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    const raw = window.localStorage.getItem(`claw_profile_${address.toLowerCase()}`);
+    if (!raw) return '';
+    const parsed = JSON.parse(raw) as { nickname?: string };
+    return typeof parsed.nickname === 'string' ? parsed.nickname : '';
+  } catch {
+    return '';
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -142,7 +155,7 @@ export function Tile({ seat, seatId, isSelected, userAddress, onClick }: TilePro
   // ------------------------------------------------------------------
 
   const priceLabel =
-    isAvailable ? 'AVAILABLE' : formatUSDC(seat.price);
+    isAvailable ? 'AVAILABLE' : formatETH(seat.price);
 
   const priceLabelColor =
     isAvailable
@@ -274,7 +287,7 @@ export function Tile({ seat, seatId, isSelected, userAddress, onClick }: TilePro
           {priceLabel}
         </span>
 
-        {/* Holder address — only shown on selected tile */}
+        {/* Holder address or nickname — only shown on selected tile */}
         {isSelected && !isAvailable && (
           <span
             className="leading-none truncate w-full text-center mt-0.5"
@@ -284,7 +297,7 @@ export function Tile({ seat, seatId, isSelected, userAddress, onClick }: TilePro
               fontFamily: 'var(--font-geist-mono, monospace)',
             }}
           >
-            {shortenAddress(seat.holder)}
+            {readNickname(seat.holder) || shortenAddress(seat.holder)}
           </span>
         )}
       </div>

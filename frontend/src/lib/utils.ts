@@ -1,20 +1,14 @@
-import { USDC_DECIMALS, TAX_RATE_BPS, BUYOUT_FEE_BPS } from './constants';
-
-export function formatUSDC(amount: bigint): string {
-  const num = Number(amount) / 10 ** USDC_DECIMALS;
-  if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
-  if (num >= 1_000) return `$${(num / 1_000).toFixed(1)}K`;
-  return `$${num.toFixed(2)}`;
-}
-
-export function parseUSDC(amount: string): bigint {
-  return BigInt(Math.floor(parseFloat(amount) * 10 ** USDC_DECIMALS));
-}
+import { TAX_RATE_BPS, BUYOUT_FEE_BPS } from './constants';
+import { parseEther } from 'viem';
 
 export function formatETH(amount: bigint): string {
   const num = Number(amount) / 1e18;
   if (num < 0.0001) return '<0.0001 ETH';
   return `${num.toFixed(4)} ETH`;
+}
+
+export function parseETHInput(amount: string): bigint {
+  return parseEther(amount || '0');
 }
 
 export function calculateTaxPerWeek(price: bigint): bigint {

@@ -4,7 +4,7 @@
 // Usage: <Sidebar selectedSeat={selectedSeatId} seats={seats} onAction={handleAction} />
 
 import { Seat } from '@/lib/types';
-import { ZERO_ADDRESS, formatUSDC } from '@/lib/utils';
+import { ZERO_ADDRESS, formatETH } from '@/lib/utils';
 import { TileDetails } from './TileDetails';
 import { Leaderboard } from './Leaderboard';
 import { ActivityFeed } from './ActivityFeed';
@@ -38,13 +38,13 @@ function GridStats({ seats }: { seats: Seat[] }) {
         <div className="flex justify-between">
           <span className="font-mono text-xs text-gray-400">Total Value</span>
           <span className="font-mono text-xs font-bold" style={{ color: '#00ff88' }}>
-            {formatUSDC(totalValue)}
+            {formatETH(totalValue)}
           </span>
         </div>
         <div className="flex justify-between">
           <span className="font-mono text-xs text-gray-400">Total Deposits</span>
           <span className="font-mono text-xs font-bold" style={{ color: '#ffd700' }}>
-            {formatUSDC(totalDeposit)}
+            {formatETH(totalDeposit)}
           </span>
         </div>
       </div>

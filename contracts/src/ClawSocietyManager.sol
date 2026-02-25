@@ -3,23 +3,20 @@ pragma solidity ^0.8.24;
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {GridLayout} from "./libraries/GridLayout.sol";
 
 /// @title ClawSocietyManager
 /// @notice Manages 100 Harberger-taxed seats in a 10x10 city grid.
 ///         Seats earn ETH from Flaunch trading fees, proportional to building multiplier.
-///         Tax is paid in USDC; buyouts transfer USDC.
+///         Tax, deposits, and buyouts all use native ETH.
 contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
-    using SafeERC20 for IERC20;
 
     // ─── Types ────────────────────────────────────────────────────────────────
 
     struct Seat {
         address holder;
-        uint128 price;              // USDC 6dp — self-assessed
-        uint128 deposit;            // USDC 6dp — drains via tax
+        uint128 price;              // ETH (wei) — self-assessed
+        uint128 deposit;            // ETH (wei) — drains via tax
         uint64 lastTaxTime;
         uint64 lastPriceChangeTime;
         uint8 buildingType;         // Immutable after init
@@ -29,7 +26,7 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
         uint256 seatId;
         uint256 newPrice;
         uint256 maxPrice;       // Slippage protection (0 = no check for unclaimed)
-        uint256 payment;        // USDC amount (deposit for claim, total for buyout)
+        uint256 payment;        // ETH amount (deposit for claim, total for buyout)
     }
 
     // ─── Constants ────────────────────────────────────────────────────────────
@@ -48,7 +45,6 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
 
     // ─── State ────────────────────────────────────────────────────────────────
 
-    IERC20 public immutable usdc;
     address public owner;
     address public protocolFeeReceiver;
     address public creatorFeeReceiver;
@@ -62,8 +58,8 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
     mapping(uint256 => uint256) public seatAccumulatedFees;
 
     // Server Fund
-    uint256 public serverFundBalance;       // USDC accumulated
-    uint256 public serverFundGoal = 10_000e6; // 10,000 USDC (6 decimals)
+    uint256 public serverFundBalance;       // ETH accumulated
+    uint256 public serverFundGoal = 1 ether;
     bool public societyAutonomous;
 
     // Forfeited ETH recovery
@@ -124,15 +120,12 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
     // ─── Constructor ──────────────────────────────────────────────────────────
 
     constructor(
-        address _usdc,
         address _protocolFeeReceiver,
         address _creatorFeeReceiver
     ) {
-        if (_usdc == address(0)) revert ZeroAddress();
         if (_protocolFeeReceiver == address(0)) revert ZeroAddress();
         if (_creatorFeeReceiver == address(0)) revert ZeroAddress();
 
-        usdc = IERC20(_usdc);
         owner = msg.sender;
         protocolFeeReceiver = _protocolFeeReceiver;
         creatorFeeReceiver = _creatorFeeReceiver;
@@ -146,23 +139,20 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
 
     // ─── Claim / Buyout ───────────────────────────────────────────────────────
 
-    /// @notice Claim an empty seat. Caller becomes holder, sets price, deposits USDC.
+    /// @notice Claim an empty seat. Caller becomes holder, sets price, deposits ETH via msg.value.
     function claimSeat(
         uint256 seatId,
-        uint256 price,
-        uint256 depositAmount
-    ) external nonReentrant validSeat(seatId) {
+        uint256 price
+    ) external payable nonReentrant validSeat(seatId) {
         _applyTax(seatId);
         Seat storage s = seats[seatId];
         if (s.holder != address(0)) revert SeatOccupied();
         if (price == 0) revert ZeroPrice();
-        if (depositAmount == 0) revert ZeroAmount();
-
-        usdc.safeTransferFrom(msg.sender, address(this), depositAmount);
+        if (msg.value == 0) revert ZeroAmount();
 
         s.holder = msg.sender;
         s.price = uint128(price);
-        s.deposit = uint128(depositAmount);
+        s.deposit = uint128(msg.value);
         s.lastTaxTime = uint64(block.timestamp);
         s.lastPriceChangeTime = uint64(block.timestamp);
 
@@ -172,20 +162,18 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
         // Snapshot so new holder doesn't claim past rewards
         seatRewardSnapshot[seatId] = globalRewardPerWeight;
 
-        emit SeatClaimed(seatId, msg.sender, price, depositAmount);
+        emit SeatClaimed(seatId, msg.sender, price, msg.value);
     }
 
     /// @notice Buy out an occupied seat. Pays current holder + fees.
     /// @param seatId Seat index
     /// @param newPrice New self-assessed price to set
     /// @param maxPrice Max price willing to pay (slippage protection)
-    /// @param payment Total USDC sent (must cover price + new deposit)
     function buyoutSeat(
         uint256 seatId,
         uint256 newPrice,
-        uint256 maxPrice,
-        uint256 payment
-    ) external nonReentrant validSeat(seatId) {
+        uint256 maxPrice
+    ) external payable nonReentrant validSeat(seatId) {
         _applyTax(seatId);
         Seat storage s = seats[seatId];
         if (s.holder == address(0)) revert SeatEmpty();
@@ -194,10 +182,8 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
 
         uint256 currentPrice = s.price;
         if (maxPrice > 0 && currentPrice > maxPrice) revert SlippageExceeded();
-        if (payment < currentPrice) revert InsufficientPayment();
-        if (payment == currentPrice) revert InsufficientDeposit();
-
-        usdc.safeTransferFrom(msg.sender, address(this), payment);
+        if (msg.value < currentPrice) revert InsufficientPayment();
+        if (msg.value == currentPrice) revert InsufficientDeposit();
 
         address oldHolder = s.holder;
         _settleBuyout(seatId, currentPrice);
@@ -205,7 +191,7 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
         // Set up new holder
         s.holder = msg.sender;
         s.price = uint128(newPrice);
-        s.deposit = uint128(payment - currentPrice);
+        s.deposit = uint128(msg.value - currentPrice);
         s.lastTaxTime = uint64(block.timestamp);
         s.lastPriceChangeTime = uint64(block.timestamp);
         seatRewardSnapshot[seatId] = globalRewardPerWeight;
@@ -214,7 +200,8 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
     }
 
     /// @notice Batch acquire seats (claim empty or buyout occupied).
-    function acquireBatch(AcquireParams[] calldata params) external nonReentrant {
+    function acquireBatch(AcquireParams[] calldata params) external payable nonReentrant {
+        uint256 totalUsed;
         for (uint256 i; i < params.length; ++i) {
             AcquireParams calldata p = params[i];
             if (p.seatId >= TOTAL_SEATS) revert InvalidSeat();
@@ -226,7 +213,9 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
                 if (seats[p.seatId].holder == msg.sender) continue;
                 _batchBuyout(p);
             }
+            totalUsed += p.payment;
         }
+        if (msg.value != totalUsed) revert InsufficientPayment();
     }
 
     // ─── Price Management ─────────────────────────────────────────────────────
@@ -247,20 +236,19 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
 
     // ─── Deposit Management ───────────────────────────────────────────────────
 
-    /// @notice Add USDC to a seat's tax deposit.
-    function addDeposit(uint256 seatId, uint256 amount) external nonReentrant validSeat(seatId) {
-        if (amount == 0) revert ZeroAmount();
+    /// @notice Add ETH to a seat's tax deposit.
+    function addDeposit(uint256 seatId) external payable nonReentrant validSeat(seatId) {
+        if (msg.value == 0) revert ZeroAmount();
         _applyTax(seatId);
         Seat storage s = seats[seatId];
         if (s.holder != msg.sender) revert NotHolder();
 
-        s.deposit += uint128(amount);
-        usdc.safeTransferFrom(msg.sender, address(this), amount);
+        s.deposit += uint128(msg.value);
 
-        emit DepositAdded(seatId, amount);
+        emit DepositAdded(seatId, msg.value);
     }
 
-    /// @notice Withdraw excess deposit USDC.
+    /// @notice Withdraw excess deposit ETH.
     function withdrawDeposit(uint256 seatId, uint256 amount) external nonReentrant validSeat(seatId) {
         if (amount == 0) revert ZeroAmount();
         _applyTax(seatId);
@@ -269,7 +257,8 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
         if (s.deposit < amount) revert InsufficientDeposit();
 
         s.deposit -= uint128(amount);
-        usdc.safeTransfer(msg.sender, amount);
+        (bool ok,) = msg.sender.call{value: amount}("");
+        if (!ok) revert TransferFailed();
 
         emit DepositWithdrawn(seatId, amount);
     }
@@ -299,11 +288,9 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
         s.lastPriceChangeTime = 0;
         seatRewardSnapshot[seatId] = 0;
 
-        if (remainingDeposit > 0) {
-            usdc.safeTransfer(holder, remainingDeposit);
-        }
-        if (pendingEth > 0) {
-            (bool ok,) = holder.call{value: pendingEth}("");
+        uint256 totalPayout = remainingDeposit + pendingEth;
+        if (totalPayout > 0) {
+            (bool ok,) = holder.call{value: totalPayout}("");
             if (!ok) revert TransferFailed();
         }
 
@@ -437,12 +424,13 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
         emit OwnershipTransferred(previousOwner, newOwner);
     }
 
-    /// @notice Withdraw server fund USDC (only after goal reached, only owner).
+    /// @notice Withdraw server fund ETH (only after goal reached, only owner).
     function withdrawServerFund(address to, uint256 amount) external nonReentrant onlyOwner {
         require(societyAutonomous, "Goal not reached");
         require(amount <= serverFundBalance, "Exceeds balance");
         serverFundBalance -= amount;
-        usdc.safeTransfer(to, amount);
+        (bool ok,) = to.call{value: amount}("");
+        if (!ok) revert TransferFailed();
     }
 
     /// @notice Withdraw forfeited ETH accumulated from seat forfeitures.
@@ -489,8 +477,6 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
         if (p.newPrice == 0) revert ZeroPrice();
         if (p.payment == 0) revert ZeroAmount();
 
-        usdc.safeTransferFrom(msg.sender, address(this), p.payment);
-
         Seat storage s = seats[p.seatId];
         s.holder = msg.sender;
         s.price = uint128(p.newPrice);
@@ -512,8 +498,6 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
         if (p.maxPrice > 0 && currentPrice > p.maxPrice) revert SlippageExceeded();
         if (p.payment < currentPrice) revert InsufficientPayment();
         if (p.payment == currentPrice) revert InsufficientDeposit();
-
-        usdc.safeTransferFrom(msg.sender, address(this), p.payment);
 
         address oldHolder = s.holder;
         _settleBuyout(p.seatId, currentPrice);
@@ -543,12 +527,18 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
         uint256 pendingEth = seatAccumulatedFees[seatId];
         seatAccumulatedFees[seatId] = 0;
 
-        uint256 sellerTotal = sellerProceeds + oldDeposit;
-        if (sellerTotal > 0) usdc.safeTransfer(oldHolder, sellerTotal);
-        if (protocolCut > 0) usdc.safeTransfer(protocolFeeReceiver, protocolCut);
-        if (creatorCut > 0) usdc.safeTransfer(creatorFeeReceiver, creatorCut);
-        if (pendingEth > 0) {
-            (bool ok,) = oldHolder.call{value: pendingEth}("");
+        // Merge seller proceeds + old deposit + pending ETH fees into single transfer
+        uint256 sellerTotal = sellerProceeds + oldDeposit + pendingEth;
+        if (sellerTotal > 0) {
+            (bool ok,) = oldHolder.call{value: sellerTotal}("");
+            if (!ok) revert TransferFailed();
+        }
+        if (protocolCut > 0) {
+            (bool ok,) = protocolFeeReceiver.call{value: protocolCut}("");
+            if (!ok) revert TransferFailed();
+        }
+        if (creatorCut > 0) {
+            (bool ok,) = creatorFeeReceiver.call{value: creatorCut}("");
             if (!ok) revert TransferFailed();
         }
     }
@@ -602,8 +592,7 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
     function _processTaxRevenue(uint256 taxAmount) internal {
         uint256 serverCut = (taxAmount * SERVER_FUND_BPS) / BPS;
         serverFundBalance += serverCut;
-        // Remaining 95% stays in contract as USDC (already held)
-        // Protocol/creator can be paid out separately or kept as reserves
+        // Remaining 95% stays in contract as ETH reserves
 
         if (!societyAutonomous && serverFundBalance >= serverFundGoal) {
             societyAutonomous = true;

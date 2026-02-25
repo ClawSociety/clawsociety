@@ -5,7 +5,7 @@
 
 import { Seat } from '@/lib/types';
 import { BUILDING_CONFIGS } from '@/lib/constants';
-import { formatUSDC, shortenAddress, ZERO_ADDRESS } from '@/lib/utils';
+import { formatETH, shortenAddress, ZERO_ADDRESS } from '@/lib/utils';
 
 interface LeaderboardProps {
   seats: Seat[];
@@ -69,7 +69,7 @@ export function Leaderboard({ seats }: LeaderboardProps) {
 
                 {/* Price */}
                 <span className="shrink-0 font-bold" style={{ color: '#00ff88' }}>
-                  {formatUSDC(seat.price)}
+                  {formatETH(seat.price)}
                 </span>
               </li>
             );

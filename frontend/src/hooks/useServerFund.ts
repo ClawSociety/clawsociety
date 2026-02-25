@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useReadContracts } from 'wagmi';
 import { CONTRACT_ADDRESS, MANAGER_ABI } from '@/lib/contract';
 
-const GOAL = 10n * 10n ** 18n;
+const GOAL = 1n * 10n ** 18n;
 
 export function useServerFund() {
   const { data } = useReadContracts({

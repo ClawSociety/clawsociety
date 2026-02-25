@@ -4,33 +4,17 @@ pragma solidity ^0.8.24;
 import {Test, console2} from "forge-std/Test.sol";
 import {ClawSocietyManager} from "../src/ClawSocietyManager.sol";
 import {GridLayout} from "../src/libraries/GridLayout.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-/// @dev Mock USDC token (6 decimals)
-contract MockUSDC is ERC20 {
-    constructor() ERC20("USD Coin", "USDC") {}
-
-    function decimals() public pure override returns (uint8) {
-        return 6;
-    }
-
-    function mint(address to, uint256 amount) external {
-        _mint(to, amount);
-    }
-}
 
 /// @dev Malicious contract that attempts reentrancy during buyout ETH callback
 contract ReentrantAttacker {
     ClawSocietyManager public manager;
 
-    constructor(ClawSocietyManager _manager, address _usdc) {
+    constructor(ClawSocietyManager _manager) {
         manager = _manager;
-        IERC20(_usdc).approve(address(_manager), type(uint256).max);
     }
 
-    function claimSeat(uint256 seatId, uint256 price, uint256 deposit) external {
-        manager.claimSeat(seatId, price, deposit);
+    function claimSeat(uint256 seatId, uint256 price) external payable {
+        manager.claimSeat{value: msg.value}(seatId, price);
     }
 
     receive() external payable {
@@ -41,7 +25,6 @@ contract ReentrantAttacker {
 
 contract ClawSocietyManagerTest is Test {
     ClawSocietyManager public manager;
-    MockUSDC public usdc;
 
     address public deployer = makeAddr("deployer");
     address public protocolFee = makeAddr("protocolFee");
@@ -50,32 +33,21 @@ contract ClawSocietyManagerTest is Test {
     address public bob = makeAddr("bob");
     address public charlie = makeAddr("charlie");
 
-    uint256 constant USDC_1 = 1e6;       // 1 USDC
-    uint256 constant USDC_100 = 100e6;    // 100 USDC
-    uint256 constant USDC_1000 = 1000e6;  // 1000 USDC
+    uint256 constant PRICE = 0.1 ether;       // 0.1 ETH
+    uint256 constant DEPOSIT = 1 ether;        // 1 ETH
+    uint256 constant ETH_001 = 0.001 ether;    // 0.001 ETH
 
     function setUp() public {
-        vm.startPrank(deployer);
-        usdc = new MockUSDC();
+        vm.prank(deployer);
         manager = new ClawSocietyManager(
-            address(usdc),
             protocolFee,
             creatorFee
         );
-        vm.stopPrank();
 
         // Fund users
-        usdc.mint(alice, 1_000_000e6);
-        usdc.mint(bob, 1_000_000e6);
-        usdc.mint(charlie, 1_000_000e6);
-
-        // Approve manager for all users
-        vm.prank(alice);
-        usdc.approve(address(manager), type(uint256).max);
-        vm.prank(bob);
-        usdc.approve(address(manager), type(uint256).max);
-        vm.prank(charlie);
-        usdc.approve(address(manager), type(uint256).max);
+        vm.deal(alice, 1000 ether);
+        vm.deal(bob, 1000 ether);
+        vm.deal(charlie, 1000 ether);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -83,7 +55,6 @@ contract ClawSocietyManagerTest is Test {
     // ═══════════════════════════════════════════════════════════════════════
 
     function test_deployment_initialState() public view {
-        assertEq(address(manager.usdc()), address(usdc));
         assertEq(manager.owner(), deployer);
         assertEq(manager.totalActiveWeight(), 0);
         assertEq(manager.globalRewardPerWeight(), 0);
@@ -145,47 +116,47 @@ contract ClawSocietyManagerTest is Test {
     function test_claimSeat_happyPath() public {
         // Seat 0 is a Park (type 9, multiplier 700)
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         (address holder, uint128 price, uint128 deposit, , , ) = manager.seats(0);
         assertEq(holder, alice);
-        assertEq(price, USDC_100);
-        assertEq(deposit, USDC_1000);
+        assertEq(price, PRICE);
+        assertEq(deposit, DEPOSIT);
         assertEq(manager.totalActiveWeight(), 700);
     }
 
     function test_claimSeat_centerTile() public {
         vm.prank(alice);
-        manager.claimSeat(55, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(55, PRICE);
 
         assertEq(manager.totalActiveWeight(), 2000); // Server Farm = 2000
     }
 
     function test_claimSeat_revert_occupied() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.prank(bob);
         vm.expectRevert(ClawSocietyManager.SeatOccupied.selector);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
     }
 
     function test_claimSeat_revert_invalidSeat() public {
         vm.prank(alice);
         vm.expectRevert(ClawSocietyManager.InvalidSeat.selector);
-        manager.claimSeat(100, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(100, PRICE);
     }
 
     function test_claimSeat_revert_zeroPrice() public {
         vm.prank(alice);
         vm.expectRevert(ClawSocietyManager.ZeroPrice.selector);
-        manager.claimSeat(0, 0, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, 0);
     }
 
     function test_claimSeat_revert_zeroDeposit() public {
         vm.prank(alice);
         vm.expectRevert(ClawSocietyManager.ZeroAmount.selector);
-        manager.claimSeat(0, USDC_100, 0);
+        manager.claimSeat{value: 0}(0, PRICE);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -193,62 +164,62 @@ contract ClawSocietyManagerTest is Test {
     // ═══════════════════════════════════════════════════════════════════════
 
     function test_buyout_happyPath() public {
-        // Alice claims seat 0 at 100 USDC
+        // Alice claims seat 0 at 0.1 ETH
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
-        uint256 aliceBefore = usdc.balanceOf(alice);
+        uint256 aliceBefore = alice.balance;
 
-        // Bob buys out at current price (100 USDC) + 500 deposit
+        // Bob buys out at current price (0.1 ETH) + 0.5 ETH deposit
         vm.prank(bob);
-        manager.buyoutSeat(0, 200e6, USDC_100, USDC_100 + 500e6);
+        manager.buyoutSeat{value: PRICE + 0.5 ether}(0, 0.2 ether, PRICE);
 
         (address holder, uint128 price, uint128 deposit, , , ) = manager.seats(0);
         assertEq(holder, bob);
-        assertEq(price, 200e6);
-        assertEq(deposit, 500e6); // payment - currentPrice
+        assertEq(price, 0.2 ether);
+        assertEq(deposit, 0.5 ether); // payment - currentPrice
 
-        // Alice received: 80% of 100 USDC (80) + deposit (1000) = 1080 USDC
-        uint256 aliceAfter = usdc.balanceOf(alice);
-        assertEq(aliceAfter - aliceBefore, 80e6 + USDC_1000);
+        // Alice received: 80% of 0.1 ETH (0.08) + deposit (1.0) = 1.08 ETH
+        uint256 aliceAfter = alice.balance;
+        assertEq(aliceAfter - aliceBefore, 0.08 ether + DEPOSIT);
 
-        // Protocol got 6% of price = 6 USDC
-        assertEq(usdc.balanceOf(protocolFee), 6e6);
-        // Creator got 14% of price = 14 USDC
-        assertEq(usdc.balanceOf(creatorFee), 14e6);
+        // Protocol got 6% of price = 0.006 ETH
+        assertEq(protocolFee.balance, 0.006 ether);
+        // Creator got 14% of price = 0.014 ETH
+        assertEq(creatorFee.balance, 0.014 ether);
     }
 
     function test_buyout_revert_slippage() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.prank(bob);
         vm.expectRevert(ClawSocietyManager.SlippageExceeded.selector);
-        manager.buyoutSeat(0, USDC_100, 50e6, USDC_100 + 500e6); // maxPrice=50 < current=100
+        manager.buyoutSeat{value: PRICE + 0.5 ether}(0, PRICE, 0.05 ether); // maxPrice=0.05 < current=0.1
     }
 
     function test_buyout_revert_insufficientPayment() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.prank(bob);
         vm.expectRevert(ClawSocietyManager.InsufficientPayment.selector);
-        manager.buyoutSeat(0, USDC_100, USDC_100, 50e6); // payment < price
+        manager.buyoutSeat{value: 0.05 ether}(0, PRICE, PRICE); // payment < price
     }
 
     function test_buyout_revert_emptySeat() public {
         vm.prank(bob);
         vm.expectRevert(ClawSocietyManager.SeatEmpty.selector);
-        manager.buyoutSeat(0, USDC_100, USDC_100, USDC_100 + 500e6);
+        manager.buyoutSeat{value: PRICE + 0.5 ether}(0, PRICE, PRICE);
     }
 
     function test_buyout_revert_ownSeat() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.prank(alice);
         vm.expectRevert(ClawSocietyManager.SeatOccupied.selector);
-        manager.buyoutSeat(0, USDC_100, USDC_100, USDC_100 + 500e6);
+        manager.buyoutSeat{value: PRICE + 0.5 ether}(0, PRICE, PRICE);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -257,13 +228,13 @@ contract ClawSocietyManagerTest is Test {
 
     function test_tax_continuousDrain() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         // Advance 1 week
         vm.warp(block.timestamp + 604_800);
 
-        // Tax = 100 * 500 / 10000 = 5 USDC for 1 week
-        uint256 expectedTax = (USDC_100 * 500) / 10_000;
+        // Tax = 0.1 ETH * 500 / 10000 = 0.005 ETH for 1 week
+        uint256 expectedTax = (PRICE * 500) / 10_000;
         assertEq(manager.accruedTax(0), expectedTax);
 
         // Poke tax to apply it
@@ -272,16 +243,16 @@ contract ClawSocietyManagerTest is Test {
         manager.pokeTax(ids);
 
         (, , uint128 deposit, , , ) = manager.seats(0);
-        assertEq(deposit, USDC_1000 - expectedTax);
+        assertEq(deposit, DEPOSIT - expectedTax);
     }
 
     function test_tax_forfeiture() public {
-        // Alice claims with small deposit (10 USDC) at price 100 USDC
+        // Alice claims with small deposit (0.01 ETH) at price 0.1 ETH
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, 10e6);
+        manager.claimSeat{value: 0.01 ether}(0, PRICE);
 
-        // Tax rate is 5%/week. At 100 USDC price, tax = 5 USDC/week
-        // 10 USDC deposit lasts 2 weeks
+        // Tax rate is 5%/week. At 0.1 ETH price, tax = 0.005 ETH/week
+        // 0.01 ETH deposit lasts 2 weeks
         vm.warp(block.timestamp + 3 * 604_800); // 3 weeks — exceeds deposit
 
         uint256[] memory ids = new uint256[](1);
@@ -295,7 +266,7 @@ contract ClawSocietyManagerTest is Test {
 
     function test_tax_pokeTaxPermissionless() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.warp(block.timestamp + 604_800);
 
@@ -306,13 +277,13 @@ contract ClawSocietyManagerTest is Test {
         manager.pokeTax(ids);
 
         (, , uint128 deposit, , , ) = manager.seats(0);
-        uint256 expectedTax = (USDC_100 * 500) / 10_000;
-        assertEq(deposit, USDC_1000 - expectedTax);
+        uint256 expectedTax = (PRICE * 500) / 10_000;
+        assertEq(deposit, DEPOSIT - expectedTax);
     }
 
     function test_tax_serverFundContribution() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.warp(block.timestamp + 604_800);
 
@@ -320,8 +291,8 @@ contract ClawSocietyManagerTest is Test {
         ids[0] = 0;
         manager.pokeTax(ids);
 
-        // Tax = 5 USDC. Server fund gets 5% of tax = 0.25 USDC
-        uint256 expectedTax = (USDC_100 * 500) / 10_000;
+        // Tax = 0.005 ETH. Server fund gets 5% of tax = 0.00025 ETH
+        uint256 expectedTax = (PRICE * 500) / 10_000;
         uint256 expectedServerCut = (expectedTax * 500) / 10_000;
         assertEq(manager.serverFundBalance(), expectedServerCut);
     }
@@ -332,7 +303,7 @@ contract ClawSocietyManagerTest is Test {
 
     function test_distributeFees_singleHolder() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000); // Park, weight=700
+        manager.claimSeat{value: DEPOSIT}(0, PRICE); // Park, weight=700
 
         // Distribute 1 ETH
         vm.deal(address(this), 1 ether);
@@ -346,11 +317,11 @@ contract ClawSocietyManagerTest is Test {
     function test_distributeFees_weightedDistribution() public {
         // Alice claims Park (weight=700)
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         // Bob claims Server Farm (weight=2000)
         vm.prank(bob);
-        manager.claimSeat(55, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(55, PRICE);
 
         // Total weight = 2700
 
@@ -369,7 +340,7 @@ contract ClawSocietyManagerTest is Test {
 
     function test_distributeFees_claimEth() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.deal(address(this), 1 ether);
         manager.distributeFees{value: 1 ether}();
@@ -400,7 +371,7 @@ contract ClawSocietyManagerTest is Test {
     function test_distributeFees_lazyAccumulation() public {
         // Alice claims first
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         // Distribute 1 ETH
         vm.deal(address(this), 2 ether);
@@ -408,7 +379,7 @@ contract ClawSocietyManagerTest is Test {
 
         // Bob claims after distribution
         vm.prank(bob);
-        manager.claimSeat(55, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(55, PRICE);
 
         // Bob should have 0 pending (joined after distribution)
         assertEq(manager.pendingFees(55), 0);
@@ -436,14 +407,14 @@ contract ClawSocietyManagerTest is Test {
 
     function test_serverFund_accumulation() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.warp(block.timestamp + 604_800);
         uint256[] memory ids = new uint256[](1);
         ids[0] = 0;
         manager.pokeTax(ids);
 
-        // Tax = 5 USDC. Server fund gets 5% = 0.25 USDC
+        // Tax = 0.005 ETH. Server fund gets 5% = 0.00025 ETH
         assertGt(manager.serverFundBalance(), 0);
         assertEq(manager.societyAutonomous(), false);
     }
@@ -454,44 +425,44 @@ contract ClawSocietyManagerTest is Test {
 
     function test_setPrice_happyPath() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         // Wait cooldown
         vm.warp(block.timestamp + 1201);
 
         vm.prank(alice);
-        manager.setPrice(0, 200e6);
+        manager.setPrice(0, 0.2 ether);
 
         (, uint128 price, , , , ) = manager.seats(0);
-        assertEq(price, 200e6);
+        assertEq(price, 0.2 ether);
     }
 
     function test_setPrice_revert_cooldown() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         // Try to change price before cooldown
         vm.warp(block.timestamp + 600); // Only 10 minutes
 
         vm.prank(alice);
         vm.expectRevert(ClawSocietyManager.PriceCooldown.selector);
-        manager.setPrice(0, 200e6);
+        manager.setPrice(0, 0.2 ether);
     }
 
     function test_setPrice_revert_notHolder() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.warp(block.timestamp + 1201);
 
         vm.prank(bob);
         vm.expectRevert(ClawSocietyManager.NotHolder.selector);
-        manager.setPrice(0, 200e6);
+        manager.setPrice(0, 0.2 ether);
     }
 
     function test_setPrice_revert_zeroPrice() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.warp(block.timestamp + 1201);
 
@@ -502,18 +473,18 @@ contract ClawSocietyManagerTest is Test {
 
     function test_setPrice_appliesTaxFirst() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         // Advance 1 week so tax accrues
         vm.warp(block.timestamp + 604_800);
 
         vm.prank(alice);
-        manager.setPrice(0, 200e6);
+        manager.setPrice(0, 0.2 ether);
 
         // Deposit should have been reduced by tax
         (, , uint128 deposit, , , ) = manager.seats(0);
-        uint256 expectedTax = (USDC_100 * 500) / 10_000;
-        assertEq(deposit, USDC_1000 - expectedTax);
+        uint256 expectedTax = (PRICE * 500) / 10_000;
+        assertEq(deposit, DEPOSIT - expectedTax);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -522,36 +493,36 @@ contract ClawSocietyManagerTest is Test {
 
     function test_addDeposit() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.prank(alice);
-        manager.addDeposit(0, 500e6);
+        manager.addDeposit{value: 0.5 ether}(0);
 
         (, , uint128 deposit, , , ) = manager.seats(0);
-        assertEq(deposit, 1500e6);
+        assertEq(deposit, 1.5 ether);
     }
 
     function test_withdrawDeposit() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
-        uint256 before = usdc.balanceOf(alice);
+        uint256 before = alice.balance;
 
         vm.prank(alice);
-        manager.withdrawDeposit(0, 200e6);
+        manager.withdrawDeposit(0, 0.2 ether);
 
         (, , uint128 deposit, , , ) = manager.seats(0);
-        assertEq(deposit, 800e6);
-        assertEq(usdc.balanceOf(alice) - before, 200e6);
+        assertEq(deposit, 0.8 ether);
+        assertEq(alice.balance - before, 0.2 ether);
     }
 
     function test_withdrawDeposit_revert_insufficient() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.prank(alice);
         vm.expectRevert(ClawSocietyManager.InsufficientDeposit.selector);
-        manager.withdrawDeposit(0, 2000e6);
+        manager.withdrawDeposit(0, 2 ether);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -560,9 +531,9 @@ contract ClawSocietyManagerTest is Test {
 
     function test_abandon_happyPath() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
-        uint256 before = usdc.balanceOf(alice);
+        uint256 before = alice.balance;
 
         vm.prank(alice);
         manager.abandonSeat(0);
@@ -572,12 +543,12 @@ contract ClawSocietyManagerTest is Test {
         assertEq(manager.totalActiveWeight(), 0);
 
         // Got deposit back
-        assertEq(usdc.balanceOf(alice) - before, USDC_1000);
+        assertEq(alice.balance - before, DEPOSIT);
     }
 
     function test_abandon_withPendingFees() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         // Distribute some ETH
         vm.deal(address(this), 1 ether);
@@ -588,13 +559,13 @@ contract ClawSocietyManagerTest is Test {
         vm.prank(alice);
         manager.abandonSeat(0);
 
-        // Should receive pending ETH fees too (minor rounding possible)
-        assertApproxEqAbs(alice.balance - ethBefore, 1 ether, 1);
+        // Should receive deposit + pending ETH fees (minor rounding possible)
+        assertApproxEqAbs(alice.balance - ethBefore, DEPOSIT + 1 ether, 1);
     }
 
     function test_abandon_revert_notHolder() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.prank(bob);
         vm.expectRevert(ClawSocietyManager.NotHolder.selector);
@@ -603,19 +574,19 @@ contract ClawSocietyManagerTest is Test {
 
     function test_abandon_afterTaxDrain() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         // Advance 1 week
         vm.warp(block.timestamp + 604_800);
 
-        uint256 before = usdc.balanceOf(alice);
+        uint256 before = alice.balance;
 
         vm.prank(alice);
         manager.abandonSeat(0);
 
         // Should get deposit minus accrued tax
-        uint256 expectedTax = (USDC_100 * 500) / 10_000;
-        assertEq(usdc.balanceOf(alice) - before, USDC_1000 - expectedTax);
+        uint256 expectedTax = (PRICE * 500) / 10_000;
+        assertEq(alice.balance - before, DEPOSIT - expectedTax);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -625,14 +596,14 @@ contract ClawSocietyManagerTest is Test {
     function test_claimAfterForfeiture() public {
         // Alice claims with small deposit
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, 3e6); // 3 USDC deposit
+        manager.claimSeat{value: 0.003 ether}(0, PRICE); // 0.003 ETH deposit
 
         // Wait until forfeiture
         vm.warp(block.timestamp + 2 * 604_800); // 2 weeks
 
         // Bob can now claim (triggers forfeiture of Alice)
         vm.prank(bob);
-        manager.claimSeat(0, 50e6, 500e6);
+        manager.claimSeat{value: 0.5 ether}(0, 0.05 ether);
 
         (address holder, , , , , ) = manager.seats(0);
         assertEq(holder, bob);
@@ -640,22 +611,22 @@ contract ClawSocietyManagerTest is Test {
 
     function test_getAllSeats() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         ClawSocietyManager.Seat[100] memory allSeats = manager.getAllSeats();
         assertEq(allSeats[0].holder, alice);
-        assertEq(allSeats[0].price, USDC_100);
+        assertEq(allSeats[0].price, PRICE);
         assertEq(allSeats[1].holder, address(0)); // unclaimed
     }
 
     function test_depositRunway() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
-        // Tax = 100 * 5% / week = 5 USDC/week
-        // Deposit = 1000 USDC → runway = 200 weeks
+        // Tax = 0.1 ETH * 5% / week = 0.005 ETH/week
+        // Deposit = 1 ETH → runway = 200 weeks
         uint256 runway = manager.depositRunway(0);
-        // runway = 1000e6 * 604800 * 10000 / (100e6 * 500)
+        // runway = 1e18 * 604800 * 10000 / (1e17 * 500)
         //        = 1000 * 604800 * 10000 / (100 * 500) = 120960000
         assertEq(runway, 200 * 604_800); // 200 weeks in seconds
     }
@@ -665,25 +636,25 @@ contract ClawSocietyManagerTest is Test {
 
         params[0] = ClawSocietyManager.AcquireParams({
             seatId: 0,
-            newPrice: USDC_100,
+            newPrice: PRICE,
             maxPrice: 0,
-            payment: USDC_1000
+            payment: DEPOSIT
         });
         params[1] = ClawSocietyManager.AcquireParams({
             seatId: 1,
-            newPrice: USDC_100,
+            newPrice: PRICE,
             maxPrice: 0,
-            payment: USDC_1000
+            payment: DEPOSIT
         });
         params[2] = ClawSocietyManager.AcquireParams({
             seatId: 2,
-            newPrice: USDC_100,
+            newPrice: PRICE,
             maxPrice: 0,
-            payment: USDC_1000
+            payment: DEPOSIT
         });
 
         vm.prank(alice);
-        manager.acquireBatch(params);
+        manager.acquireBatch{value: 3 ether}(params);
 
         (address h0, , , , , ) = manager.seats(0);
         (address h1, , , , , ) = manager.seats(1);
@@ -695,7 +666,7 @@ contract ClawSocietyManagerTest is Test {
 
     function test_receiveEth_autoDistribute() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         // Send ETH directly to contract
         vm.deal(address(this), 1 ether);
@@ -709,7 +680,7 @@ contract ClawSocietyManagerTest is Test {
     function test_buyout_transfersPendingEthToSeller() public {
         // Alice claims
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         // Distribute ETH
         vm.deal(address(this), 1 ether);
@@ -719,10 +690,11 @@ contract ClawSocietyManagerTest is Test {
 
         // Bob buys out Alice
         vm.prank(bob);
-        manager.buyoutSeat(0, 200e6, USDC_100, USDC_100 + 500e6);
+        manager.buyoutSeat{value: PRICE + 0.5 ether}(0, 0.2 ether, PRICE);
 
-        // Alice should receive pending ETH (minor rounding possible)
-        assertApproxEqAbs(alice.balance - aliceEthBefore, 1 ether, 1);
+        // Alice should receive pending ETH + seller proceeds + deposit
+        // Seller proceeds = 0.1 * 80% = 0.08 ETH, deposit = 1 ETH, pending = ~1 ETH
+        assertApproxEqAbs(alice.balance - aliceEthBefore, 0.08 ether + DEPOSIT + 1 ether, 1);
     }
 
     function test_onERC721Received() public {
@@ -734,7 +706,7 @@ contract ClawSocietyManagerTest is Test {
     // Fuzz Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    function testFuzz_taxCalculation(uint128 price, uint32 elapsed) public {
+    function testFuzz_taxCalculation(uint128 price, uint32 elapsed) public pure {
         vm.assume(price > 0 && price < 1e18); // reasonable range
         vm.assume(elapsed > 0 && elapsed < 365 days);
 
@@ -744,19 +716,21 @@ contract ClawSocietyManagerTest is Test {
     }
 
     function testFuzz_claimAndAbandon(uint128 price, uint128 depositAmt) public {
-        vm.assume(price > 0 && price < 1_000_000e6);
-        vm.assume(depositAmt > 0 && depositAmt < 1_000_000e6);
+        vm.assume(price > 0 && price < 100 ether);
+        vm.assume(depositAmt > 0 && depositAmt < 100 ether);
+
+        vm.deal(alice, uint256(depositAmt) + 1 ether);
 
         vm.prank(alice);
-        manager.claimSeat(0, price, depositAmt);
+        manager.claimSeat{value: depositAmt}(0, price);
 
-        uint256 before = usdc.balanceOf(alice);
+        uint256 before = alice.balance;
 
         vm.prank(alice);
         manager.abandonSeat(0);
 
         // Should get full deposit back (no time passed, no tax)
-        assertEq(usdc.balanceOf(alice) - before, depositAmt);
+        assertEq(alice.balance - before, depositAmt);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -765,9 +739,9 @@ contract ClawSocietyManagerTest is Test {
 
     /// Fix 1: Reentrancy during buyout ETH callback is blocked
     function test_reentrancy_withdrawDeposit_blocked() public {
-        ReentrantAttacker attacker = new ReentrantAttacker(manager, address(usdc));
-        usdc.mint(address(attacker), 1_000_000e6);
-        attacker.claimSeat(0, USDC_100, USDC_1000);
+        ReentrantAttacker attacker = new ReentrantAttacker(manager);
+        vm.deal(address(attacker), 100 ether);
+        attacker.claimSeat{value: DEPOSIT}(0, PRICE);
 
         // Distribute ETH to give attacker pending fees
         vm.deal(address(this), 1 ether);
@@ -776,7 +750,7 @@ contract ClawSocietyManagerTest is Test {
         // Bob buys out attacker — attacker's receive() tries reentrancy → reverts
         vm.prank(bob);
         vm.expectRevert(ClawSocietyManager.TransferFailed.selector);
-        manager.buyoutSeat(0, 200e6, USDC_100, USDC_100 + 500e6);
+        manager.buyoutSeat{value: PRICE + 0.5 ether}(0, 0.2 ether, PRICE);
 
         // Verify attacker still holds the seat (buyout failed, state unchanged)
         (address holder, , , , , ) = manager.seats(0);
@@ -786,7 +760,7 @@ contract ClawSocietyManagerTest is Test {
     /// Fix 3: claimFees events log actual amounts, not 0
     function test_claimFees_emitsCorrectAmounts() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.deal(address(this), 1 ether);
         manager.distributeFees{value: 1 ether}();
@@ -804,50 +778,44 @@ contract ClawSocietyManagerTest is Test {
         manager.claimFees(ids);
     }
 
-    /// Fix 4: serverFundGoal is now in USDC units and reachable
+    /// Fix 4: serverFundGoal is now in ETH units and reachable
     function test_serverFund_goalReachable() public {
         vm.prank(deployer);
-        manager.setServerFundGoal(100e6); // 100 USDC
+        manager.setServerFundGoal(0.01 ether); // 0.01 ETH goal
 
         vm.prank(alice);
-        manager.claimSeat(0, 100_000e6, 500_000e6); // price=100k, deposit=500k
+        manager.claimSeat{value: 50 ether}(0, 10 ether); // price=10 ETH, deposit=50 ETH
 
-        // 1 week: tax = 100k * 5% = 5000 USDC. Server fund gets 5% = 250 USDC > 100 goal
+        // 1 week: tax = 10 * 5% = 0.5 ETH. Server fund gets 5% = 0.025 ETH > 0.01 goal
         vm.warp(block.timestamp + 604_800);
 
         uint256[] memory ids = new uint256[](1);
         ids[0] = 0;
         manager.pokeTax(ids);
 
-        assertTrue(manager.societyAutonomous(), "Goal should be reachable with USDC units");
+        assertTrue(manager.societyAutonomous(), "Goal should be reachable with ETH units");
     }
 
     /// Fix 5: buyout with payment == price reverts (zero deposit)
     function test_buyout_revert_zeroDeposit() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
 
         vm.prank(bob);
         vm.expectRevert(ClawSocietyManager.InsufficientDeposit.selector);
-        manager.buyoutSeat(0, USDC_100, USDC_100, USDC_100); // payment == price
-    }
-
-    /// Fix 6: constructor reverts on zero USDC address
-    function test_constructor_revert_zeroUsdc() public {
-        vm.expectRevert(ClawSocietyManager.ZeroAddress.selector);
-        new ClawSocietyManager(address(0), protocolFee, creatorFee);
+        manager.buyoutSeat{value: PRICE}(0, PRICE, PRICE); // payment == price
     }
 
     /// Fix 6: constructor reverts on zero protocol fee receiver
     function test_constructor_revert_zeroProtocolReceiver() public {
         vm.expectRevert(ClawSocietyManager.ZeroAddress.selector);
-        new ClawSocietyManager(address(usdc), address(0), creatorFee);
+        new ClawSocietyManager(address(0), creatorFee);
     }
 
     /// Fix 6: constructor reverts on zero creator fee receiver
     function test_constructor_revert_zeroCreatorReceiver() public {
         vm.expectRevert(ClawSocietyManager.ZeroAddress.selector);
-        new ClawSocietyManager(address(usdc), protocolFee, address(0));
+        new ClawSocietyManager(protocolFee, address(0));
     }
 
     /// Fix 6: transferOwnership reverts on zero address
@@ -861,9 +829,9 @@ contract ClawSocietyManagerTest is Test {
     function test_claimFees_skipsForfeited() public {
         // Alice claims two seats
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, USDC_1000);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
         vm.prank(alice);
-        manager.claimSeat(1, USDC_100, 3e6); // small deposit — will forfeit
+        manager.claimSeat{value: 0.003 ether}(1, PRICE); // small deposit — will forfeit
 
         // Distribute ETH
         vm.deal(address(this), 1 ether);
@@ -896,7 +864,7 @@ contract ClawSocietyManagerTest is Test {
     /// Fix 8: forfeited ETH is recoverable via withdrawCreatorEth
     function test_forfeiture_ethSentToCreator() public {
         vm.prank(alice);
-        manager.claimSeat(0, USDC_100, 3e6); // small deposit
+        manager.claimSeat{value: 0.003 ether}(0, PRICE); // small deposit
 
         // Distribute ETH
         vm.deal(address(this), 1 ether);
