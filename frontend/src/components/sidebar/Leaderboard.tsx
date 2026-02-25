@@ -41,7 +41,7 @@ export function Leaderboard({ seats }: LeaderboardProps) {
             return (
               <li
                 key={index}
-                className={`flex items-center gap-2 rounded px-2 py-1 font-mono text-xs ${
+                className={`flex items-center gap-2 rounded px-2 py-2.5 font-mono text-xs sm:py-1 ${
                   isEven ? 'bg-white/5' : 'bg-transparent'
                 }`}
               >

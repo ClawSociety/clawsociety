@@ -63,8 +63,7 @@ export function Sidebar({ selectedSeat, seats, onAction }: SidebarProps) {
 
   return (
     <aside
-      className="flex h-full flex-col gap-3 overflow-y-auto px-1 py-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
-      style={{ maxHeight: '100vh' }}
+      className="flex flex-col gap-3 px-1 py-2 lg:h-full lg:max-h-screen lg:overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
     >
       {/* ---- Tile Details or placeholder ---- */}
       {activeSeat && selectedSeat !== null ? (

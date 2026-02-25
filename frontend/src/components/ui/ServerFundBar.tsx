@@ -108,7 +108,8 @@ export function ServerFundBar() {
           className="font-mono text-xs font-bold uppercase tracking-widest select-none"
           style={{ color: 'rgba(0,255,136,0.9)', letterSpacing: '0.18em' }}
         >
-          SERVER FUND:&nbsp;
+          <span className="hidden sm:inline">SERVER FUND:</span>
+          <span className="sm:hidden">FUND:</span>&nbsp;
         </span>
         <span
           className="font-mono text-xs font-bold select-none"

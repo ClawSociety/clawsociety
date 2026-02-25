@@ -60,12 +60,11 @@ function StatusToast({ status, errorMessage, onDismiss }: StatusToastProps) {
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg px-4 py-3 font-mono text-xs font-bold shadow-lg"
+      className="fixed bottom-4 left-4 right-4 z-50 flex items-center gap-3 rounded-lg px-4 py-3 font-mono text-xs font-bold shadow-lg sm:left-auto sm:right-4 sm:max-w-[320px]"
       style={{
         background: c.bg,
         border: `1px solid ${c.border}`,
         color: c.color,
-        maxWidth: '320px',
         boxShadow: `0 0 20px ${c.border}`,
       }}
     >
@@ -84,7 +83,7 @@ function StatusToast({ status, errorMessage, onDismiss }: StatusToastProps) {
         type="button"
         onClick={onDismiss}
         aria-label="Dismiss notification"
-        className="ml-2 shrink-0 opacity-50 transition-opacity hover:opacity-100"
+        className="ml-2 shrink-0 opacity-50 transition-opacity hover:opacity-100 flex items-center justify-center w-11 h-11 -mr-2 rounded-full"
         style={{ color: c.color, fontSize: '1rem', lineHeight: 1 }}
       >
         x
@@ -280,7 +279,7 @@ export default function HomePage() {
       <ServerFundBar />
 
       {/* Header row */}
-      <header className="flex items-center justify-between px-4 py-3 sm:px-6">
+      <header className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex items-center gap-3 min-w-0">
           <Image
             src="/logo.png"
@@ -315,7 +314,7 @@ export default function HomePage() {
         </div>
 
         {/* Right side: profile panel when connected, connect button when not */}
-        <div className="ml-4 shrink-0 flex items-center gap-2">
+        <div className="self-end sm:self-auto ml-4 shrink-0 flex items-center gap-2">
           {address ? (
             <ProfilePanel
               address={address}
@@ -332,7 +331,7 @@ export default function HomePage() {
       {address && totalPending > 0n && (
         <div
           role="alert"
-          className="mx-4 mb-2 flex items-center gap-2 rounded-lg border px-3 py-2 font-mono text-xs sm:mx-6"
+          className="mx-4 mb-2 flex items-start gap-2 rounded-lg border px-3 py-2 font-mono text-xs sm:items-center sm:mx-6"
           style={{
             background: 'rgba(0,255,136,0.06)',
             borderColor: 'rgba(0,255,136,0.25)',

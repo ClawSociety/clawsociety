@@ -156,3 +156,19 @@ body {
 .neon-text-flicker {
   animation: neon-flicker 8s ease-in-out infinite;
 }
+
+.grid-tilt {
+  /* intentionally no transform — grid is rendered flat */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-pulse, .tile-available, .neon-text-flicker { animation: none !important; }
+  .neon-text-flicker {
+    text-shadow: 0 0 4px rgba(0,255,136,0.8), 0 0 12px rgba(0,255,136,0.6), 0 0 28px rgba(0,255,136,0.4);
+  }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

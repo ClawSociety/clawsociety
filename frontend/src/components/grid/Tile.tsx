@@ -264,7 +264,7 @@ export function Tile({ seat, seatId, isSelected, userAddress, onClick }: TilePro
         <span
           className="mt-0.5 text-center font-semibold leading-tight truncate w-full text-center"
           style={{
-            fontSize: 'clamp(0.35rem, 0.9vw, 0.6rem)',
+            fontSize: 'clamp(0.5rem, 0.9vw, 0.6rem)',
             color: '#c0c0d0',
             fontFamily: 'var(--font-geist-mono, monospace)',
           }}
@@ -277,7 +277,7 @@ export function Tile({ seat, seatId, isSelected, userAddress, onClick }: TilePro
         <span
           className="font-bold leading-tight truncate w-full text-center"
           style={{
-            fontSize: 'clamp(0.3rem, 0.8vw, 0.55rem)',
+            fontSize: 'clamp(0.45rem, 0.8vw, 0.55rem)',
             color: priceLabelColor,
             fontFamily: 'var(--font-geist-mono, monospace)',
             marginTop: '1px',
@@ -292,7 +292,7 @@ export function Tile({ seat, seatId, isSelected, userAddress, onClick }: TilePro
           <span
             className="leading-none truncate w-full text-center mt-0.5"
             style={{
-              fontSize: 'clamp(0.28rem, 0.7vw, 0.48rem)',
+              fontSize: 'clamp(0.4rem, 0.7vw, 0.48rem)',
               color: 'rgba(200,200,220,0.75)',
               fontFamily: 'var(--font-geist-mono, monospace)',
             }}

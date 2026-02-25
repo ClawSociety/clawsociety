@@ -83,7 +83,7 @@ function ActionInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? '0.00'}
-        className="w-full rounded border bg-[#0d0d1a] px-2 py-1.5 font-mono text-xs text-white placeholder-gray-600 outline-none transition-colors focus:ring-1"
+        className="w-full rounded border bg-[#0d0d1a] px-2 py-3 font-mono text-sm text-white placeholder-gray-600 outline-none transition-colors focus:ring-1 sm:py-1.5 sm:text-xs"
         style={{
           borderColor: accentColor ? `${accentColor}55` : '#ffffff22',
           // @ts-expect-error CSS custom property
@@ -109,7 +109,7 @@ function ActionButton({
   variant?: 'primary' | 'ghost' | 'danger';
 }) {
   const base =
-    'w-full rounded px-3 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40';
+    'w-full rounded px-3 py-3 font-mono text-sm font-bold uppercase tracking-wider transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40 sm:py-1.5 sm:text-xs';
 
   const styles: Record<string, React.CSSProperties> = {
     primary: {

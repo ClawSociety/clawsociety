@@ -61,14 +61,7 @@ const Grid = memo(function Grid({ selectedSeat, onSelectSeat }: GridProps) {
   // Grid container styling
   // ------------------------------------------------------------------
 
-  // The outer wrapper carries a subtle perspective tilt to convey a
-  // top-down city-block view. The transform is intentionally mild so it
-  // doesn't distort smaller tiles on mobile.
-
   const wrapperStyle: CSSProperties = {
-    perspective: '1200px',
-    perspectiveOrigin: '50% 30%',
-    overflow: 'hidden',
     paddingBottom: '12px',
   };
 
@@ -77,11 +70,7 @@ const Grid = memo(function Grid({ selectedSeat, onSelectSeat }: GridProps) {
     gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
     gap: 'clamp(2px, 0.4vw, 5px)',
     width: '100%',
-    // Subtle perspective tilt — rotate slightly back so it reads as a
-    // bird's-eye city view. Reduce on mobile via a CSS variable fallback.
-    transform: 'rotateX(5deg)',
-    transformOrigin: 'center center',
-    transformStyle: 'preserve-3d',
+    minWidth: '430px',
   };
 
   // ------------------------------------------------------------------
@@ -94,9 +83,9 @@ const Grid = memo(function Grid({ selectedSeat, onSelectSeat }: GridProps) {
         aria-label="City grid loading"
         aria-busy="true"
         style={wrapperStyle}
-        className="w-full"
+        className="w-full overflow-x-auto lg:overflow-hidden"
       >
-        <div style={gridStyle} role="presentation">
+        <div style={gridStyle} className="grid-tilt" role="presentation">
           {Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, i) => (
             <SkeletonTile key={i} index={i} />
           ))}
@@ -133,10 +122,11 @@ const Grid = memo(function Grid({ selectedSeat, onSelectSeat }: GridProps) {
     <section
       aria-label={`Claw Society city grid, ${GRID_SIZE * GRID_SIZE} seats`}
       style={wrapperStyle}
-      className="w-full"
+      className="w-full overflow-x-auto lg:overflow-hidden"
     >
       <div
         style={gridStyle}
+        className="grid-tilt"
         // Accessible grid semantics — screen readers will announce the
         // grid role and navigate cells individually via the Tile's own
         // role="button" + aria-label.

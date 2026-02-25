@@ -221,11 +221,12 @@ export function ProfilePanel({ address, seats, totalPendingFees }: ProfilePanelP
     background: '#0a0a15',
     border: '1px solid rgba(0,255,136,0.2)',
     borderRadius: '4px',
-    padding: '6px 8px',
+    padding: '10px 12px',
     color: '#ededed',
     fontFamily: 'var(--font-jetbrains-mono), monospace',
-    fontSize: '0.72rem',
+    fontSize: '0.8rem',
     outline: 'none',
+    minHeight: '44px',
   };
 
   return (
@@ -271,21 +272,19 @@ export function ProfilePanel({ address, seats, totalPendingFees }: ProfilePanelP
 
       {/* Dropdown panel */}
       {open && (
+        <>
+        {/* Backdrop overlay — mobile only */}
+        <div className="fixed inset-0 z-[99] bg-black/50 sm:hidden" onClick={() => setOpen(false)} />
         <div
           ref={panelRef}
           role="dialog"
           aria-label="Profile settings"
+          className="fixed inset-x-0 bottom-0 z-[100] max-h-[85vh] overflow-y-auto rounded-t-xl sm:absolute sm:inset-auto sm:bottom-auto sm:top-full sm:right-0 sm:mt-2 sm:w-[280px] sm:rounded-xl sm:max-h-none"
           style={{
-            position: 'absolute',
-            top: 'calc(100% + 8px)',
-            right: 0,
-            width: '280px',
             background: '#0d0d1a',
             border: '1px solid rgba(0,255,136,0.2)',
-            borderRadius: '8px',
             padding: '16px',
             boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 40px rgba(0,255,136,0.06)',
-            zIndex: 100,
             fontFamily: 'var(--font-jetbrains-mono), monospace',
           }}
         >
@@ -444,6 +443,7 @@ export function ProfilePanel({ address, seats, totalPendingFees }: ProfilePanelP
             style={{
               width: '100%',
               padding: '8px',
+              minHeight: '44px',
               background: saved ? 'rgba(0,255,136,0.15)' : 'rgba(0,255,136,0.08)',
               border: `1px solid ${saved ? 'rgba(0,255,136,0.6)' : 'rgba(0,255,136,0.3)'}`,
               borderRadius: '4px',
@@ -460,6 +460,7 @@ export function ProfilePanel({ address, seats, totalPendingFees }: ProfilePanelP
             {saved ? 'Saved!' : 'Save Profile'}
           </button>
         </div>
+        </>
       )}
     </div>
   );

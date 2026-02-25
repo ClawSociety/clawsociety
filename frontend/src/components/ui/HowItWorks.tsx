@@ -280,7 +280,7 @@ export function HowItWorks() {
           <span
             style={{
               fontSize: '0.6rem',
-              color: 'rgba(0,255,136,0.45)',
+              color: 'rgba(0,255,136,0.65)',
               fontWeight: 600,
               letterSpacing: '0.06em',
             }}
