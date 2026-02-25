@@ -27,6 +27,7 @@ import { ProfilePanel } from '@/components/ui/ProfilePanel';
 import { HowItWorks } from '@/components/ui/HowItWorks';
 import { AgentSkillModal, AgentSkillButton } from '@/components/ui/AgentSkillModal';
 import { ActivityTicker } from '@/components/ui/ActivityTicker';
+import { TotalDistributed } from '@/components/ui/TotalDistributed';
 import { useGridState } from '@/hooks/useGridState';
 import { useSeatAction } from '@/hooks/useSeatAction';
 import { useClaimFees } from '@/hooks/useClaimFees';
@@ -90,6 +91,54 @@ function StatusToast({ status, errorMessage, onDismiss }: StatusToastProps) {
       >
         x
       </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Token address with copy button
+// ---------------------------------------------------------------------------
+
+const SOCIETY_TOKEN = '0x12b7e46c5e98514447178994f26f06200e0db660';
+
+function TokenAddress() {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(SOCIETY_TOKEN).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, []);
+
+  return (
+    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="font-mono text-xs text-white/40 shrink-0">Token:</span>
+        <span
+          className="font-mono text-xs truncate"
+          style={{ color: '#00ff88' }}
+          title={SOCIETY_TOKEN}
+        >
+          {SOCIETY_TOKEN}
+        </span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="shrink-0 rounded border border-white/10 px-2 py-1 font-mono text-xs transition-all hover:border-[#00ff88]/40 hover:text-[#00ff88]"
+          style={{ color: copied ? '#00ff88' : 'rgba(160,160,200,0.6)' }}
+        >
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+      <a
+        href={`https://dexscreener.com/base/${SOCIETY_TOKEN}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-mono text-xs text-white/40 transition-colors hover:text-[#00ff88] shrink-0"
+      >
+        View on DexScreener &rarr;
+      </a>
     </div>
   );
 }
@@ -380,6 +429,9 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* Total ETH distributed counter */}
+      <TotalDistributed />
+
       {/* Body: Grid + Sidebar */}
       <main
         className="flex flex-1 flex-col gap-4 px-4 pb-4 sm:px-6 lg:flex-row lg:items-start lg:gap-6"
@@ -412,6 +464,37 @@ export default function HomePage() {
           />
         </section>
       </main>
+
+      {/* DexScreener Chart + Token Address */}
+      <div className="px-4 pb-4 sm:px-6">
+        <div className="rounded-lg border border-white/10 bg-[#0d0d1a] p-4">
+          <h3
+            className="mb-3 font-mono text-xs font-bold uppercase tracking-widest"
+            style={{ color: '#00ffff' }}
+          >
+            $SOCIETY Chart
+          </h3>
+          <div
+            className="overflow-hidden rounded-lg"
+            style={{ position: 'relative', width: '100%', paddingBottom: '56.25%' }}
+          >
+            <iframe
+              src="https://dexscreener.com/base/0x12b7e46c5e98514447178994f26f06200e0db660?embed=1&theme=dark&info=0"
+              title="$SOCIETY DexScreener Chart"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                border: 'none',
+              }}
+              allow="clipboard-write"
+            />
+          </div>
+          <TokenAddress />
+        </div>
+      </div>
 
       {/* How It Works — full width, collapsible, below the grid */}
       <div className="px-4 pb-4 sm:px-6">

@@ -36,8 +36,8 @@ export interface ContractEvent {
 // ---------------------------------------------------------------------------
 
 const MAX_EVENTS = 50;
-// ~1 hour of Base blocks (2s block time)
-const HISTORICAL_BLOCK_RANGE = 1800n;
+// ~24 hours of Base blocks (2s block time)
+const HISTORICAL_BLOCK_RANGE = 43200n;
 
 // All 9 event names we track
 const EVENT_NAMES: EventType[] = [

@@ -1,13 +1,15 @@
 'use client';
 
-// Sidebar - main container for tile details, leaderboard, and activity feed
+// Sidebar - main container for tile details, leaderboard, activity feed, and Claw FC
 // Usage: <Sidebar selectedSeat={selectedSeatId} seats={seats} onAction={handleAction} />
 
+import { useState } from 'react';
 import { Seat } from '@/lib/types';
 import { ZERO_ADDRESS, formatETH } from '@/lib/utils';
 import { TileDetails } from './TileDetails';
 import { Leaderboard } from './Leaderboard';
 import { ActivityFeed } from './ActivityFeed';
+import { FCPanel } from '../fc/FCPanel';
 
 interface SidebarProps {
   selectedSeat: number | null;
@@ -52,7 +54,10 @@ function GridStats({ seats }: { seats: Seat[] }) {
   );
 }
 
+type SidebarView = 'grid' | 'fc';
+
 export function Sidebar({ selectedSeat, seats, onAction }: SidebarProps) {
+  const [view, setView] = useState<SidebarView>('grid');
   const activeSeat = selectedSeat !== null ? seats[selectedSeat] ?? null : null;
 
   const handleAction = (action: string, params: Record<string, string>) => {
@@ -65,32 +70,64 @@ export function Sidebar({ selectedSeat, seats, onAction }: SidebarProps) {
     <aside
       className="flex flex-col gap-3 px-1 py-2 lg:h-full lg:max-h-screen lg:overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
     >
-      {/* ---- Tile Details or placeholder ---- */}
-      {activeSeat && selectedSeat !== null ? (
-        <TileDetails seat={activeSeat} seatId={selectedSeat} onAction={handleAction} />
-      ) : (
-        <div
-          className="flex flex-col items-center justify-center rounded-xl border border-white/10 p-8 text-center"
-          style={{ background: '#1a1a2e', minHeight: '180px' }}
+      {/* ---- View Switcher ---- */}
+      <div className="flex gap-1">
+        <button
+          onClick={() => setView('grid')}
+          className="flex-1 rounded py-1.5 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
+          style={{
+            color: view === 'grid' ? '#0d0d1a' : '#8855ff',
+            background: view === 'grid' ? '#8855ff' : 'transparent',
+            border: `1px solid ${view === 'grid' ? '#8855ff' : '#8855ff33'}`,
+          }}
         >
-          <span className="mb-2 text-3xl">🗺️</span>
-          <p className="font-mono text-sm font-bold uppercase tracking-widest text-gray-400">
-            Select a tile
-          </p>
-          <p className="mt-1 font-mono text-xs text-gray-600">
-            Click any tile on the grid to view details and take actions.
-          </p>
-        </div>
+          Grid
+        </button>
+        <button
+          onClick={() => setView('fc')}
+          className="flex-1 rounded py-1.5 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
+          style={{
+            color: view === 'fc' ? '#0d0d1a' : '#00ffff',
+            background: view === 'fc' ? '#00ffff' : 'transparent',
+            border: `1px solid ${view === 'fc' ? '#00ffff' : '#00ffff33'}`,
+          }}
+        >
+          Claw FC
+        </button>
+      </div>
+
+      {view === 'grid' && (
+        <>
+          {/* ---- Tile Details or placeholder ---- */}
+          {activeSeat && selectedSeat !== null ? (
+            <TileDetails seat={activeSeat} seatId={selectedSeat} onAction={handleAction} />
+          ) : (
+            <div
+              className="flex flex-col items-center justify-center rounded-xl border border-white/10 p-8 text-center"
+              style={{ background: '#1a1a2e', minHeight: '180px' }}
+            >
+              <span className="mb-2 text-3xl">🗺️</span>
+              <p className="font-mono text-sm font-bold uppercase tracking-widest text-gray-400">
+                Select a tile
+              </p>
+              <p className="mt-1 font-mono text-xs text-gray-600">
+                Click any tile on the grid to view details and take actions.
+              </p>
+            </div>
+          )}
+
+          {/* ---- Leaderboard ---- */}
+          <Leaderboard seats={seats} />
+
+          {/* ---- Grid Stats ---- */}
+          <GridStats seats={seats} />
+
+          {/* ---- Activity Feed ---- */}
+          <ActivityFeed />
+        </>
       )}
 
-      {/* ---- Leaderboard ---- */}
-      <Leaderboard seats={seats} />
-
-      {/* ---- Grid Stats ---- */}
-      <GridStats seats={seats} />
-
-      {/* ---- Activity Feed ---- */}
-      <ActivityFeed />
+      {view === 'fc' && <FCPanel seats={seats} />}
     </aside>
   );
 }

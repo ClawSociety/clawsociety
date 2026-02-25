@@ -886,13 +886,142 @@ contract ClawSocietyManagerTest is Test {
         assertEq(manager.creatorPendingEth(), 0);
     }
 
-    /// Fix 11: second NFT sent to contract is rejected
-    function test_onERC721Received_rejectsSecondNFT() public {
-        // First NFT succeeds
+    /// Fix 11: second NFT sent to contract no longer reverts (accepts silently)
+    function test_onERC721Received_acceptsMultipleNFTs() public {
+        // First NFT sets memeStreamNFT
         manager.onERC721Received(address(0), address(0), 42, "");
+        assertEq(manager.memeStreamNFT(), address(this));
+        assertEq(manager.memeStreamTokenId(), 42);
 
-        // Second NFT reverts
-        vm.expectRevert("Unexpected NFT");
-        manager.onERC721Received(address(0), address(0), 43, "");
+        // Second NFT succeeds (no longer reverts) but doesn't overwrite
+        bytes4 selector = manager.onERC721Received(address(0), address(0), 43, "");
+        assertEq(selector, bytes4(keccak256("onERC721Received(address,address,uint256,bytes)")));
+        assertEq(manager.memeStreamTokenId(), 42); // unchanged
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 12. External Call Functions (Flaunch Integration)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function test_execute_onlyOwner() public {
+        vm.prank(alice);
+        vm.expectRevert(ClawSocietyManager.OnlyOwner.selector);
+        manager.execute(address(0), 0, "");
+    }
+
+    function test_execute_callsTarget() public {
+        // Deploy a simple target that we can verify was called
+        MockTarget target = new MockTarget();
+
+        vm.prank(deployer);
+        bytes memory result = manager.execute(
+            address(target),
+            0,
+            abi.encodeWithSignature("ping()")
+        );
+
+        assertEq(abi.decode(result, (uint256)), 42);
+        assertTrue(target.wasCalled());
+    }
+
+    function test_execute_sendsValue() public {
+        MockTarget target = new MockTarget();
+        // Fund the manager so it can send ETH
+        vm.deal(address(manager), 1 ether);
+
+        vm.prank(deployer);
+        manager.execute(address(target), 0.5 ether, abi.encodeWithSignature("ping()"));
+
+        assertEq(address(target).balance, 0.5 ether);
+    }
+
+    function test_claimFlaunchFees_onlyOwner() public {
+        vm.prank(alice);
+        vm.expectRevert(ClawSocietyManager.OnlyOwner.selector);
+        manager.claimFlaunchFees(address(0));
+    }
+
+    function test_claimFlaunchFees_callsWithdrawFees() public {
+        MockFeeEscrow escrow = new MockFeeEscrow();
+        vm.deal(address(escrow), 1 ether);
+
+        // Alice claims a seat so there's active weight for fee distribution
+        vm.prank(alice);
+        manager.claimSeat{value: DEPOSIT}(0, PRICE);
+
+        vm.prank(deployer);
+        manager.claimFlaunchFees(address(escrow));
+
+        assertTrue(escrow.wasCalled());
+        // The escrow sends 0.5 ETH to the manager, which auto-distributes via receive()
+        assertApproxEqAbs(manager.pendingFees(0), 0.5 ether, 1);
+    }
+
+    function test_transferERC721_onlyOwner() public {
+        vm.prank(alice);
+        vm.expectRevert(ClawSocietyManager.OnlyOwner.selector);
+        manager.transferERC721(address(0), alice, 0);
+    }
+
+    function test_transferERC721_transfersNFT() public {
+        MockERC721 nft = new MockERC721();
+        nft.mint(address(manager), 1);
+
+        assertEq(nft.ownerOf(1), address(manager));
+
+        vm.prank(deployer);
+        manager.transferERC721(address(nft), alice, 1);
+
+        assertEq(nft.ownerOf(1), alice);
+    }
+}
+
+/// @dev Mock target for testing execute()
+contract MockTarget {
+    bool public wasCalled;
+
+    function ping() external payable returns (uint256) {
+        wasCalled = true;
+        return 42;
+    }
+
+    receive() external payable {}
+}
+
+/// @dev Mock FeeEscrow for testing claimFlaunchFees()
+contract MockFeeEscrow {
+    bool public wasCalled;
+
+    function withdrawFees(address recipient, bool) external {
+        wasCalled = true;
+        // Send some ETH to simulate fee withdrawal
+        (bool ok,) = recipient.call{value: 0.5 ether}("");
+        require(ok, "Transfer failed");
+    }
+
+    receive() external payable {}
+}
+
+/// @dev Minimal ERC721 mock for testing transferERC721()
+contract MockERC721 {
+    mapping(uint256 => address) public ownerOf;
+    mapping(uint256 => address) public getApproved;
+
+    function mint(address to, uint256 tokenId) external {
+        ownerOf[tokenId] = to;
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) external {
+        require(ownerOf[tokenId] == from, "Not owner");
+        require(
+            msg.sender == from || msg.sender == getApproved[tokenId],
+            "Not authorized"
+        );
+        ownerOf[tokenId] = to;
+    }
+
+    function approve(address to, uint256 tokenId) external {
+        require(ownerOf[tokenId] == msg.sender, "Not owner");
+        getApproved[tokenId] = to;
     }
 }

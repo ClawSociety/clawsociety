@@ -21,7 +21,8 @@ import {
   calculateBuyoutCost,
   ZERO_ADDRESS,
 } from '@/lib/utils';
-import { useAccount } from 'wagmi';
+import { useAccount, useReadContract } from 'wagmi';
+import { CONTRACT_ADDRESS, MANAGER_ABI } from '@/lib/contract';
 
 /** Read a stored nickname for any address directly from localStorage. */
 function readNickname(address: string): string {
@@ -171,6 +172,16 @@ export function TileDetails({ seat, seatId, onAction }: TileDetailsProps) {
   const isAvailable = seat.holder === ZERO_ADDRESS;
   const isOwner = address && seat.holder.toLowerCase() === address.toLowerCase();
   const isOtherOwner = !isAvailable && !isOwner;
+
+  // Fetch pending fees for this seat when user is the owner
+  const { data: myPendingFees } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: MANAGER_ABI,
+    functionName: 'pendingFees',
+    args: [BigInt(seatId)],
+    query: { enabled: !!isOwner, refetchInterval: 30_000 },
+  });
+  const pendingFees = isOwner && myPendingFees != null ? BigInt(myPendingFees as bigint) : 0n;
 
   const taxPerWeek = isAvailable ? 0n : calculateTaxPerWeek(seat.price);
   const runway = isAvailable ? null : calculateRunway(seat.deposit, seat.price);
@@ -423,12 +434,18 @@ export function TileDetails({ seat, seatId, onAction }: TileDetailsProps) {
 
           {/* Claim Fees */}
           <SectionDivider label="Fees" />
-          <div className="mt-2 mb-3">
+          <div className="mt-2 mb-3 space-y-1.5">
+            <StatRow
+              label="Unclaimed Fees"
+              value={formatETH(pendingFees)}
+              valueColor="#00ffff"
+            />
             <ActionButton
-              label="Claim ETH Fees"
+              label={pendingFees > 0n ? `Claim ${formatETH(pendingFees)}` : 'No Fees to Claim'}
               onClick={() => onAction('claimFees', {})}
               color="#00ffff"
               variant="ghost"
+              disabled={pendingFees === 0n}
             />
           </div>
 

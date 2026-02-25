@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {GridLayout} from "./libraries/GridLayout.sol";
 
 /// @title ClawSocietyManager
@@ -446,6 +447,32 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
         serverFundGoal = _goal;
     }
 
+    // ─── External Calls (Flaunch Integration) ─────────────────────────────────
+
+    /// @notice Execute an arbitrary call (owner-only). Enables Flaunch fee claims,
+    ///         NFT transfers, and future protocol integrations.
+    function execute(address target, uint256 value, bytes calldata data)
+        external onlyOwner nonReentrant returns (bytes memory)
+    {
+        (bool ok, bytes memory result) = target.call{value: value}(data);
+        if (!ok) revert TransferFailed();
+        return result;
+    }
+
+    /// @notice Convenience: claim Flaunch fees from FeeEscrow, unwrapping flETH to ETH.
+    ///         ETH received goes to receive() which auto-distributes to seat holders.
+    function claimFlaunchFees(address feeEscrow) external onlyOwner nonReentrant {
+        (bool ok,) = feeEscrow.call(
+            abi.encodeWithSignature("withdrawFees(address,bool)", address(this), true)
+        );
+        if (!ok) revert TransferFailed();
+    }
+
+    /// @notice Transfer an ERC721 out of this contract.
+    function transferERC721(address nft, address to, uint256 tokenId) external onlyOwner {
+        IERC721(nft).safeTransferFrom(address(this), to, tokenId);
+    }
+
     // ─── ERC721 Receiver ──────────────────────────────────────────────────────
 
     function onERC721Received(
@@ -458,9 +485,8 @@ contract ClawSocietyManager is ReentrancyGuard, IERC721Receiver {
             memeStreamNFT = msg.sender;
             memeStreamTokenId = tokenId;
             emit MemeStreamReceived(msg.sender, tokenId);
-            return IERC721Receiver.onERC721Received.selector;
         }
-        revert("Unexpected NFT");
+        return IERC721Receiver.onERC721Received.selector;
     }
 
     /// @notice Accept ETH (for fee distribution via direct transfer).

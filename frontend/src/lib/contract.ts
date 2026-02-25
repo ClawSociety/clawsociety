@@ -362,6 +362,38 @@ export const MANAGER_ABI = [
     outputs: [{ name: '', type: 'bytes4', internalType: 'bytes4' }],
     stateMutability: 'nonpayable',
   },
+  // ──────────────────────── Write: External Calls ───────────────────────────
+  {
+    type: 'function',
+    name: 'execute',
+    inputs: [
+      { name: 'target', type: 'address', internalType: 'address' },
+      { name: 'value', type: 'uint256', internalType: 'uint256' },
+      { name: 'data', type: 'bytes', internalType: 'bytes' },
+    ],
+    outputs: [{ name: '', type: 'bytes', internalType: 'bytes' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'claimFlaunchFees',
+    inputs: [
+      { name: 'feeEscrow', type: 'address', internalType: 'address' },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'transferERC721',
+    inputs: [
+      { name: 'nft', type: 'address', internalType: 'address' },
+      { name: 'to', type: 'address', internalType: 'address' },
+      { name: 'tokenId', type: 'uint256', internalType: 'uint256' },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
   // ─────────────────────────────── Events ────────────────────────────────────
   {
     type: 'event',
