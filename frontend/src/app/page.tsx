@@ -160,9 +160,14 @@ export default function HomePage() {
     if (isSuccess) {
       setTxStatus('success');
       refetch();
+      // RPC may not reflect the new state immediately — retry after 2s
+      const retryTimer = setTimeout(() => refetch(), 2000);
       // Auto-dismiss after 4 s
-      const timer = setTimeout(() => setTxStatus('idle'), 4000);
-      return () => clearTimeout(timer);
+      const dismissTimer = setTimeout(() => setTxStatus('idle'), 4000);
+      return () => {
+        clearTimeout(retryTimer);
+        clearTimeout(dismissTimer);
+      };
     }
   }, [isSuccess, refetch]);
 
