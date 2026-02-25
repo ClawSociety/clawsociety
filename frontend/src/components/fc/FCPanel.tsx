@@ -163,6 +163,8 @@ export function FCPanel({ seats }: FCPanelProps) {
   const [formation, setFormation] = useState<Formation>('balanced');
   const [stakeInput, setStakeInput] = useState('');
   const [viewingMatch, setViewingMatch] = useState<CloudFCMatch | null>(null);
+  const [error, setError] = useState('');
+  const [matchStep, setMatchStep] = useState<'' | 'squad' | 'match'>('');
   const publicClient = usePublicClient();
   const { players: myPlayers } = useMyPlayers(address);
   const { openMatches, resolvedMatches, refetch } = useCloudFCMatches();
@@ -213,30 +215,46 @@ export function FCPanel({ seats }: FCPanelProps) {
 
   const handleCreateSquadAndMatch = async () => {
     if (selectedPlayers.length !== 5) return;
+    setError('');
     try {
+      setMatchStep('squad');
       const squadHash = await createSquad(selectedPlayers.map(id => BigInt(id)), formation);
       const squadId = await parseSquadId(squadHash);
-      if (squadId === null) throw new Error('Failed to parse SquadCreated event');
+      if (squadId === null) throw new Error('Failed to parse squad ID from transaction');
+      setMatchStep('match');
       await createMatch(squadId, stakeInput);
       setSelectedPlayers([]);
       setStakeInput('');
+      setMatchStep('');
       refetch();
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('createSquadAndMatch failed:', e);
+      setMatchStep('');
+      const err = e as { shortMessage?: string; message?: string };
+      const msg = err?.shortMessage || err?.message || 'Transaction failed';
+      setError(msg);
     }
   };
 
   const handleAccept = async (match: CloudFCMatch) => {
     if (selectedPlayers.length !== 5) return;
+    setError('');
     try {
+      setMatchStep('squad');
       const squadHash = await createSquad(selectedPlayers.map(id => BigInt(id)), formation);
       const squadId = await parseSquadId(squadHash);
-      if (squadId === null) throw new Error('Failed to parse SquadCreated event');
+      if (squadId === null) throw new Error('Failed to parse squad ID from transaction');
+      setMatchStep('match');
       await acceptMatch(BigInt(match.id), squadId, match.stake);
       setSelectedPlayers([]);
+      setMatchStep('');
       refetch();
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('acceptMatch failed:', e);
+      setMatchStep('');
+      const err = e as { shortMessage?: string; message?: string };
+      const msg = err?.shortMessage || err?.message || 'Transaction failed';
+      setError(msg);
     }
   };
 
@@ -357,7 +375,15 @@ export function FCPanel({ seats }: FCPanelProps) {
           {!address ? (
             <p className="text-xs text-gray-500">Connect wallet to build squad.</p>
           ) : myPlayers.length === 0 ? (
-            <p className="text-xs text-gray-500">No players found. Mint some first!</p>
+            <div className="text-center py-4">
+              <p className="text-xs text-gray-500 mb-2">No players found.</p>
+              <button
+                onClick={() => setTab('packs')}
+                className="rounded bg-cyan-500 px-4 py-2 text-xs font-bold uppercase text-black hover:bg-cyan-400"
+              >
+                Open a Pack
+              </button>
+            </div>
           ) : (
             <>
               {/* Player Selection */}
@@ -371,6 +397,12 @@ export function FCPanel({ seats }: FCPanelProps) {
                   />
                 ))}
               </div>
+
+              {selectedPlayers.length > 0 && selectedPlayers.length < 5 && (
+                <p className="mb-2 text-center text-[10px] text-yellow-500">
+                  Select {5 - selectedPlayers.length} more player{5 - selectedPlayers.length > 1 ? 's' : ''} to create a match
+                </p>
+              )}
 
               {/* Selected Squad Stats */}
               {selectedPlayers.length > 0 && (
@@ -427,6 +459,21 @@ export function FCPanel({ seats }: FCPanelProps) {
                 </div>
               </div>
 
+              {/* Error Display */}
+              {error && (
+                <div className="mb-2 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                  {error}
+                  <button onClick={() => setError('')} className="ml-2 text-red-500 hover:text-red-300">✕</button>
+                </div>
+              )}
+
+              {/* Step Progress */}
+              {matchStep && (
+                <div className="mb-2 rounded border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-400">
+                  {matchStep === 'squad' ? 'Step 1/2: Creating squad on-chain... (confirm in wallet)' : 'Step 2/2: Creating match... (confirm in wallet)'}
+                </div>
+              )}
+
               {/* Stake + Create */}
               <div className="flex gap-2">
                 <input
@@ -440,10 +487,10 @@ export function FCPanel({ seats }: FCPanelProps) {
                 />
                 <button
                   onClick={handleCreateSquadAndMatch}
-                  disabled={isPending || selectedPlayers.length !== 5}
+                  disabled={isPending || selectedPlayers.length !== 5 || matchStep !== ''}
                   className="rounded bg-cyan-500 px-4 py-2 text-xs font-bold uppercase text-black transition-colors hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-40 sm:py-1.5"
                 >
-                  {isPending ? '...' : 'Create'}
+                  {matchStep === 'squad' ? 'Creating Squad...' : matchStep === 'match' ? 'Creating Match...' : 'Create Match'}
                 </button>
               </div>
             </>
@@ -498,7 +545,7 @@ export function FCPanel({ seats }: FCPanelProps) {
       )}
 
       {/* ─── Packs (Lootbox) ─── */}
-      {tab === 'packs' && <LootboxPanel />}
+      {tab === 'packs' && <LootboxPanel onGoToSquad={() => setTab('squad')} />}
 
       {/* ─── Gallery ─── */}
       {tab === 'gallery' && <CardGallery />}

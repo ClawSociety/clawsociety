@@ -211,7 +211,7 @@ function MiniCard({ player }: { player: CloudFCPlayer }) {
 
 type SubTab = 'open' | 'collection';
 
-export function LootboxPanel() {
+export function LootboxPanel({ onGoToSquad }: { onGoToSquad?: () => void }) {
   const { address } = useAccount();
   const { packPrice, totalPacks, openPack, isPending, isSuccess, refetch } = useLootbox(address);
   const { players: myPlayers } = useMyPlayers(address);
@@ -342,7 +342,7 @@ export function LootboxPanel() {
                       />
                     ))}
                   </div>
-                  <div className="mt-4 text-center">
+                  <div className="mt-4 flex gap-2 justify-center">
                     <button
                       onClick={() => {
                         setShowReveal(false);
@@ -352,6 +352,14 @@ export function LootboxPanel() {
                     >
                       Open Another
                     </button>
+                    {onGoToSquad && (
+                      <button
+                        onClick={onGoToSquad}
+                        className="rounded bg-cyan-500 px-4 py-2 text-xs font-bold uppercase text-black hover:bg-cyan-400"
+                      >
+                        Build Squad
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
