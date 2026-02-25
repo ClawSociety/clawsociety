@@ -21,7 +21,7 @@ export function useServerFund() {
       },
     ],
     query: {
-      refetchInterval: 30_000,
+      refetchInterval: 120_000,
     },
   });
 

@@ -6,7 +6,13 @@ import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 import { config } from '@/config/wagmi';
 import '@rainbow-me/rainbowkit/styles.css';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 20_000,
+    },
+  },
+});
 
 export function Web3Provider({ children }: { children: React.ReactNode }) {
   return (

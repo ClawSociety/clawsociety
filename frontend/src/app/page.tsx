@@ -105,7 +105,7 @@ export default function HomePage() {
   const [agentModalOpen, setAgentModalOpen] = useState(false);
 
   const { address } = useAccount();
-  const { seats, refetch } = useGridState();
+  const { seats, isLoading, refetch } = useGridState();
 
   // Collect seat IDs owned by the connected user for fee tracking
   const myOwnedSeatIds: bigint[] = seats
@@ -389,6 +389,8 @@ export default function HomePage() {
           <Grid
             selectedSeat={selectedSeat}
             onSelectSeat={setSelectedSeat}
+            seats={seats}
+            isLoading={isLoading}
           />
         </section>
 

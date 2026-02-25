@@ -20,7 +20,7 @@ export function useClaimFees(seatIds: bigint[]) {
     contracts,
     query: {
       enabled: seatIds.length > 0,
-      refetchInterval: 15_000,
+      refetchInterval: 60_000,
     },
   });
 

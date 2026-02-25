@@ -12,9 +12,9 @@
 
 import { CSSProperties, memo } from 'react';
 import { useAccount } from 'wagmi';
-import { useGridState } from '@/hooks/useGridState';
 import { GRID_SIZE } from '@/lib/constants';
 import { Tile } from './Tile';
+import type { Seat } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -23,6 +23,8 @@ import { Tile } from './Tile';
 interface GridProps {
   selectedSeat: number | null;
   onSelectSeat: (seatId: number) => void;
+  seats: Seat[];
+  isLoading: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -53,8 +55,7 @@ function SkeletonTile({ index }: { index: number }) {
 // ---------------------------------------------------------------------------
 
 // Memoized so parent re-renders don't cascade into every tile.
-const Grid = memo(function Grid({ selectedSeat, onSelectSeat }: GridProps) {
-  const { seats, isLoading } = useGridState();
+const Grid = memo(function Grid({ selectedSeat, onSelectSeat, seats, isLoading }: GridProps) {
   const { address: userAddress } = useAccount();
 
   // ------------------------------------------------------------------

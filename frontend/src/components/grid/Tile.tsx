@@ -13,7 +13,7 @@
  *   />
  */
 
-import { useState, useCallback, CSSProperties } from 'react';
+import { useState, useCallback, memo, CSSProperties } from 'react';
 import { Seat, SeatStatus } from '@/lib/types';
 import { BUILDING_CONFIGS } from '@/lib/constants';
 import { formatETH, shortenAddress, ZERO_ADDRESS } from '@/lib/utils';
@@ -60,7 +60,7 @@ function getSeatStatus(seat: Seat, userAddress?: string): SeatStatus {
 // Component
 // ---------------------------------------------------------------------------
 
-export function Tile({ seat, seatId, isSelected, userAddress, onClick }: TileProps) {
+export const Tile = memo(function Tile({ seat, seatId, isSelected, userAddress, onClick }: TileProps) {
   const [imgError, setImgError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -318,4 +318,11 @@ export function Tile({ seat, seatId, isSelected, userAddress, onClick }: TilePro
       )}
     </div>
   );
-}
+}, (prev, next) =>
+  prev.seat.holder === next.seat.holder &&
+  prev.seat.price === next.seat.price &&
+  prev.seat.deposit === next.seat.deposit &&
+  prev.seat.buildingType === next.seat.buildingType &&
+  prev.isSelected === next.isSelected &&
+  prev.userAddress === next.userAddress
+);
