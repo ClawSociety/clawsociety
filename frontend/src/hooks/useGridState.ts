@@ -48,6 +48,8 @@ export function useGridState() {
     functionName: 'getAllSeats',
     query: {
       refetchInterval: 10_000,
+      // Keep previous data visible while refetching — prevents skeleton flash
+      placeholderData: (prev: unknown) => prev,
     },
   });
 
