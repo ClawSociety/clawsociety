@@ -195,7 +195,7 @@ export function FCPanel({ seats }: FCPanelProps) {
 
   const parseSquadId = async (txHash: `0x${string}`): Promise<bigint | null> => {
     if (!publicClient) return null;
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, confirmations: 2 });
     for (const log of receipt.logs) {
       try {
         const decoded = decodeEventLog({
@@ -213,6 +213,18 @@ export function FCPanel({ seats }: FCPanelProps) {
     return null;
   };
 
+  const friendlyError = (e: unknown): string => {
+    const err = e as { shortMessage?: string; message?: string };
+    const raw = err?.shortMessage || err?.message || 'Transaction failed';
+    if (raw.includes('NotPlayerOwner')) return 'You don\'t own one or more of the selected players. Try refreshing.';
+    if (raw.includes('PlayerInActiveMatch')) return 'One or more players are in an active match.';
+    if (raw.includes('InsufficientStake')) return 'You need to send at least the match stake amount.';
+    if (raw.includes('CantPlayYourself')) return 'You can\'t accept your own match.';
+    if (raw.includes('User rejected')) return 'Transaction cancelled.';
+    if (raw.includes('User denied')) return 'Transaction cancelled.';
+    return raw;
+  };
+
   const handleCreateSquadAndMatch = async () => {
     if (selectedPlayers.length !== 5) return;
     setError('');
@@ -222,6 +234,8 @@ export function FCPanel({ seats }: FCPanelProps) {
       const squadId = await parseSquadId(squadHash);
       if (squadId === null) throw new Error('Failed to parse squad ID from transaction');
       setMatchStep('match');
+      // Small delay to ensure RPC state is consistent
+      await new Promise(r => setTimeout(r, 2000));
       await createMatch(squadId, stakeInput);
       setSelectedPlayers([]);
       setStakeInput('');
@@ -230,9 +244,7 @@ export function FCPanel({ seats }: FCPanelProps) {
     } catch (e: unknown) {
       console.error('createSquadAndMatch failed:', e);
       setMatchStep('');
-      const err = e as { shortMessage?: string; message?: string };
-      const msg = err?.shortMessage || err?.message || 'Transaction failed';
-      setError(msg);
+      setError(friendlyError(e));
     }
   };
 
@@ -245,6 +257,7 @@ export function FCPanel({ seats }: FCPanelProps) {
       const squadId = await parseSquadId(squadHash);
       if (squadId === null) throw new Error('Failed to parse squad ID from transaction');
       setMatchStep('match');
+      await new Promise(r => setTimeout(r, 2000));
       await acceptMatch(BigInt(match.id), squadId, match.stake);
       setSelectedPlayers([]);
       setMatchStep('');
@@ -252,9 +265,7 @@ export function FCPanel({ seats }: FCPanelProps) {
     } catch (e: unknown) {
       console.error('acceptMatch failed:', e);
       setMatchStep('');
-      const err = e as { shortMessage?: string; message?: string };
-      const msg = err?.shortMessage || err?.message || 'Transaction failed';
-      setError(msg);
+      setError(friendlyError(e));
     }
   };
 
