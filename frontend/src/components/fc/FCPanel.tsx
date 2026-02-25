@@ -2,10 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { useAccount, usePublicClient } from 'wagmi';
-import { decodeEventLog } from 'viem';
 import type { Seat } from '@/lib/types';
 import { formatETH } from '@/lib/utils';
-import { FORMATION_NAMES, CLOUDFC_ABI } from '@/lib/cloudfc-contract';
+import { FORMATION_NAMES, CLOUDFC_ABI, CLOUDFC_ADDRESS } from '@/lib/cloudfc-contract';
 import {
   useMyPlayers, useCloudFCMatches, useCloudFCRecord,
   useClaimable, useCloudFCActions,
@@ -193,24 +192,17 @@ export function FCPanel({ seats }: FCPanelProps) {
     });
   };
 
-  const parseSquadId = async (txHash: `0x${string}`): Promise<bigint | null> => {
-    if (!publicClient) return null;
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, confirmations: 2 });
-    for (const log of receipt.logs) {
-      try {
-        const decoded = decodeEventLog({
-          abi: CLOUDFC_ABI,
-          data: log.data,
-          topics: log.topics,
-        });
-        if (decoded.eventName === 'SquadCreated') {
-          return (decoded.args as { squadId: bigint }).squadId;
-        }
-      } catch {
-        // not our event, skip
-      }
-    }
-    return null;
+  const waitForSquadId = async (txHash: `0x${string}`): Promise<bigint> => {
+    if (!publicClient) throw new Error('No public client');
+    // Wait for the createSquad tx to be confirmed
+    await publicClient.waitForTransactionReceipt({ hash: txHash, confirmations: 2 });
+    // Read totalSquads from the contract — the new squad ID is totalSquads - 1
+    const total = await publicClient.readContract({
+      address: CLOUDFC_ADDRESS,
+      abi: CLOUDFC_ABI,
+      functionName: 'totalSquads',
+    }) as bigint;
+    return total - 1n;
   };
 
   const friendlyError = (e: unknown): string => {
@@ -231,11 +223,18 @@ export function FCPanel({ seats }: FCPanelProps) {
     try {
       setMatchStep('squad');
       const squadHash = await createSquad(selectedPlayers.map(id => BigInt(id)), formation);
-      const squadId = await parseSquadId(squadHash);
-      if (squadId === null) throw new Error('Failed to parse squad ID from transaction');
+      const squadId = await waitForSquadId(squadHash);
       setMatchStep('match');
-      // Small delay to ensure RPC state is consistent
-      await new Promise(r => setTimeout(r, 2000));
+      // Verify the squad is ours before proceeding
+      const squad = await publicClient!.readContract({
+        address: CLOUDFC_ADDRESS,
+        abi: CLOUDFC_ABI,
+        functionName: 'getSquad',
+        args: [squadId],
+      }) as unknown as [bigint[], string[], number, string];
+      if (squad[3].toLowerCase() !== address?.toLowerCase()) {
+        throw new Error('Squad created but creator mismatch — possible race condition. Try again.');
+      }
       await createMatch(squadId, stakeInput);
       setSelectedPlayers([]);
       setStakeInput('');
@@ -254,10 +253,8 @@ export function FCPanel({ seats }: FCPanelProps) {
     try {
       setMatchStep('squad');
       const squadHash = await createSquad(selectedPlayers.map(id => BigInt(id)), formation);
-      const squadId = await parseSquadId(squadHash);
-      if (squadId === null) throw new Error('Failed to parse squad ID from transaction');
+      const squadId = await waitForSquadId(squadHash);
       setMatchStep('match');
-      await new Promise(r => setTimeout(r, 2000));
       await acceptMatch(BigInt(match.id), squadId, match.stake);
       setSelectedPlayers([]);
       setMatchStep('');
