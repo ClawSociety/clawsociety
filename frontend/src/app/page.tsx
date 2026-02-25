@@ -25,6 +25,7 @@ import { ServerFundBar } from '@/components/ui/ServerFundBar';
 import { ConnectButton } from '@/components/ui/ConnectButton';
 import { ProfilePanel } from '@/components/ui/ProfilePanel';
 import { HowItWorks } from '@/components/ui/HowItWorks';
+import { AgentSkillModal, AgentSkillButton } from '@/components/ui/AgentSkillModal';
 import { useGridState } from '@/hooks/useGridState';
 import { useSeatAction } from '@/hooks/useSeatAction';
 import { useClaimFees } from '@/hooks/useClaimFees';
@@ -100,6 +101,7 @@ export default function HomePage() {
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
   const [txStatus, setTxStatus] = useState<TxStatus>('idle');
   const [txError, setTxError] = useState<string | undefined>();
+  const [agentModalOpen, setAgentModalOpen] = useState(false);
 
   const { address } = useAccount();
   const { seats, refetch } = useGridState();
@@ -313,8 +315,9 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Right side: profile panel when connected, connect button when not */}
+        {/* Right side: agent button + profile panel when connected, connect button when not */}
         <div className="self-end sm:self-auto ml-4 shrink-0 flex items-center gap-2">
+          <AgentSkillButton onClick={() => setAgentModalOpen(true)} />
           {address ? (
             <ProfilePanel
               address={address}
@@ -392,6 +395,9 @@ export default function HomePage() {
         errorMessage={txError}
         onDismiss={() => setTxStatus('idle')}
       />
+
+      {/* Agent skill modal */}
+      <AgentSkillModal open={agentModalOpen} onClose={() => setAgentModalOpen(false)} />
     </div>
   );
 }
