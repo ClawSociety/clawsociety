@@ -281,9 +281,11 @@ export function FCPanel({ seats }: FCPanelProps) {
   const handleCancel = async (match: CloudFCMatch) => {
     try {
       await cancelMatch(BigInt(match.id));
+      setPendingAcceptMatch(null);
       refetch();
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('cancelMatch failed:', e);
+      setError(friendlyError(e));
     }
   };
 
@@ -404,7 +406,25 @@ export function FCPanel({ seats }: FCPanelProps) {
                 Open a Pack
               </button>
             </div>
-          ) : (
+          ) : (() => {
+            const unlockedCount = myPlayers.filter(p => !p.locked).length;
+            const allLocked = unlockedCount === 0;
+            return allLocked ? (
+              <div className="text-center py-4">
+                <p className="text-xs text-red-400 mb-2">
+                  All your players are locked in active matches.
+                </p>
+                <p className="text-[10px] text-gray-500 mb-3">
+                  Cancel your open match in the MATCHES tab to unlock them.
+                </p>
+                <button
+                  onClick={() => { setPendingAcceptMatch(null); setTab('matches'); }}
+                  className="rounded bg-yellow-500 px-4 py-2 text-xs font-bold uppercase text-black hover:bg-yellow-400"
+                >
+                  Go to Matches
+                </button>
+              </div>
+            ) : (
             <>
               {/* Player Selection */}
               <div className="mb-3 grid grid-cols-2 gap-1.5">
@@ -418,7 +438,14 @@ export function FCPanel({ seats }: FCPanelProps) {
                 ))}
               </div>
 
-              {selectedPlayers.length > 0 && selectedPlayers.length < 5 && (
+              {unlockedCount < 5 && (
+                <div className="mb-2 rounded border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-400">
+                  Only {unlockedCount} unlocked player{unlockedCount !== 1 ? 's' : ''} available.
+                  Cancel open matches or open more packs to get 5 free players.
+                </div>
+              )}
+
+              {selectedPlayers.length > 0 && selectedPlayers.length < 5 && unlockedCount >= 5 && (
                 <p className="mb-2 text-center text-[10px] text-yellow-500">
                   Select {5 - selectedPlayers.length} more player{5 - selectedPlayers.length > 1 ? 's' : ''} to create a match
                 </p>
@@ -548,7 +575,8 @@ export function FCPanel({ seats }: FCPanelProps) {
                 </button>
               </div>
             </>
-          )}
+            );
+          })()}
         </div>
       )}
 
