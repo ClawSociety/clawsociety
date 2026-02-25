@@ -164,6 +164,7 @@ export function FCPanel({ seats }: FCPanelProps) {
   const [viewingMatch, setViewingMatch] = useState<CloudFCMatch | null>(null);
   const [error, setError] = useState('');
   const [matchStep, setMatchStep] = useState<'' | 'squad' | 'match'>('');
+  const [pendingAcceptMatch, setPendingAcceptMatch] = useState<CloudFCMatch | null>(null);
   const publicClient = usePublicClient();
   const { players: myPlayers } = useMyPlayers(address);
   const { openMatches, resolvedMatches, refetch } = useCloudFCMatches();
@@ -247,7 +248,17 @@ export function FCPanel({ seats }: FCPanelProps) {
     }
   };
 
-  const handleAccept = async (match: CloudFCMatch) => {
+  const handleAcceptClick = (match: CloudFCMatch) => {
+    setPendingAcceptMatch(match);
+    if (selectedPlayers.length !== 5) {
+      setTab('squad');
+      setError('Select 5 players and pick a formation to accept Match #' + match.id);
+      return;
+    }
+    doAcceptMatch(match);
+  };
+
+  const doAcceptMatch = async (match: CloudFCMatch) => {
     if (selectedPlayers.length !== 5) return;
     setError('');
     try {
@@ -258,6 +269,7 @@ export function FCPanel({ seats }: FCPanelProps) {
       await acceptMatch(BigInt(match.id), squadId, match.stake);
       setSelectedPlayers([]);
       setMatchStep('');
+      setPendingAcceptMatch(null);
       refetch();
     } catch (e: unknown) {
       console.error('acceptMatch failed:', e);
@@ -482,23 +494,57 @@ export function FCPanel({ seats }: FCPanelProps) {
                 </div>
               )}
 
-              {/* Stake + Create */}
+              {/* Pending Accept Banner */}
+              {pendingAcceptMatch && (
+                <div className="mb-2 rounded border border-yellow-500/30 bg-yellow-500/10 px-3 py-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-yellow-400">
+                      Accepting Match #{pendingAcceptMatch.id}
+                      {pendingAcceptMatch.stake > 0n && ` (Stake: ${formatETH(pendingAcceptMatch.stake)})`}
+                    </span>
+                    <button
+                      onClick={() => setPendingAcceptMatch(null)}
+                      className="text-[10px] text-yellow-600 hover:text-yellow-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Stake + Create / Accept */}
               <div className="flex gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={stakeInput}
-                  onChange={e => setStakeInput(e.target.value)}
-                  placeholder="Stake (ETH, 0 = friendly)"
-                  className="flex-1 rounded border border-white/10 bg-[#0d0d1a] px-2 py-2 text-xs text-white placeholder-gray-600 outline-none focus:border-cyan-500/50 sm:py-1.5"
-                />
+                {!pendingAcceptMatch && (
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={stakeInput}
+                    onChange={e => setStakeInput(e.target.value)}
+                    placeholder="Stake (ETH, 0 = friendly)"
+                    className="flex-1 rounded border border-white/10 bg-[#0d0d1a] px-2 py-2 text-xs text-white placeholder-gray-600 outline-none focus:border-cyan-500/50 sm:py-1.5"
+                  />
+                )}
                 <button
-                  onClick={handleCreateSquadAndMatch}
+                  onClick={pendingAcceptMatch
+                    ? () => doAcceptMatch(pendingAcceptMatch)
+                    : handleCreateSquadAndMatch
+                  }
                   disabled={isPending || selectedPlayers.length !== 5 || matchStep !== ''}
-                  className="rounded bg-cyan-500 px-4 py-2 text-xs font-bold uppercase text-black transition-colors hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-40 sm:py-1.5"
+                  className={`rounded px-4 py-2 text-xs font-bold uppercase text-black transition-colors disabled:cursor-not-allowed disabled:opacity-40 sm:py-1.5 ${
+                    pendingAcceptMatch
+                      ? 'flex-1 bg-yellow-500 hover:bg-yellow-400'
+                      : 'bg-cyan-500 hover:bg-cyan-400'
+                  }`}
                 >
-                  {matchStep === 'squad' ? 'Creating Squad...' : matchStep === 'match' ? 'Creating Match...' : 'Create Match'}
+                  {matchStep === 'squad'
+                    ? 'Creating Squad...'
+                    : matchStep === 'match'
+                      ? (pendingAcceptMatch ? 'Accepting...' : 'Creating Match...')
+                      : pendingAcceptMatch
+                        ? `Accept Match #${pendingAcceptMatch.id}`
+                        : 'Create Match'
+                  }
                 </button>
               </div>
             </>
@@ -522,7 +568,7 @@ export function FCPanel({ seats }: FCPanelProps) {
                   <MatchRow
                     key={m.id}
                     match={m}
-                    onAccept={handleAccept}
+                    onAccept={handleAcceptClick}
                     onCancel={handleCancel}
                   />
                 ))}
