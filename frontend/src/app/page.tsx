@@ -1,473 +1,189 @@
 'use client';
 
-/**
- * Claw Society — main page
- *
- * Layout (desktop):
- *   ┌──────────────────────────────────────────────────────┐
- *   │ ServerFundBar (full width)                           │
- *   │ Header row: logo + CLAW SOCIETY · Profile/Connect    │
- *   │ Subtitle                                             │
- *   ├──────────────────────┬───────────────────────────────┤
- *   │ Grid (~65%)          │ Sidebar (~35%)                │
- *   ├──────────────────────┴───────────────────────────────┤
- *   │ HowItWorks (full width, collapsible)                 │
- *   └──────────────────────────────────────────────────────┘
- *
- * Mobile: Grid stacked above Sidebar, full width.
- */
-
-import { useState, useCallback, useEffect } from 'react';
-import { useAccount } from 'wagmi';
-import { Grid } from '@/components/grid/Grid';
-import { Sidebar } from '@/components/sidebar/Sidebar';
-import { ServerFundBar } from '@/components/ui/ServerFundBar';
-import { ConnectButton } from '@/components/ui/ConnectButton';
-import { ProfilePanel } from '@/components/ui/ProfilePanel';
-import { HowItWorks } from '@/components/ui/HowItWorks';
-import { AgentSkillModal, AgentSkillButton } from '@/components/ui/AgentSkillModal';
-import { ActivityTicker } from '@/components/ui/ActivityTicker';
-import { TotalDistributed } from '@/components/ui/TotalDistributed';
+import Link from 'next/link';
 import { useGridState } from '@/hooks/useGridState';
-import { useSeatAction } from '@/hooks/useSeatAction';
-import { useClaimFees } from '@/hooks/useClaimFees';
-import { parseETHInput, ZERO_ADDRESS } from '@/lib/utils';
-import Image from 'next/image';
+import { useCloudFCMatches } from '@/hooks/useCloudFC';
+import { TotalDistributed } from '@/components/ui/TotalDistributed';
+import { TokenAddress, SOCIETY_TOKEN } from '@/components/ui/TokenAddress';
+import { ZERO_ADDRESS } from '@/lib/utils';
 
-// ---------------------------------------------------------------------------
-// Transaction status toast
-// ---------------------------------------------------------------------------
-
-type TxStatus = 'idle' | 'pending' | 'confirming' | 'success' | 'error';
-
-interface StatusToastProps {
-  status: TxStatus;
-  errorMessage?: string;
-  onDismiss: () => void;
-}
-
-function StatusToast({ status, errorMessage, onDismiss }: StatusToastProps) {
-  if (status === 'idle') return null;
-
-  const config: Record<TxStatus, { label: string; color: string; bg: string; border: string }> = {
-    idle:       { label: '',                          color: '#fff',     bg: '#1a1a2e', border: '#ffffff22' },
-    pending:    { label: 'Transaction sent...',       color: '#ffd700', bg: '#1a1500', border: '#ffd70033' },
-    confirming: { label: 'Confirming on-chain...',    color: '#ff8855', bg: '#1a0d00', border: '#ff885533' },
-    success:    { label: 'Transaction confirmed!',    color: '#00ff88', bg: '#001a0d', border: '#00ff8844' },
-    error:      { label: errorMessage ?? 'Transaction failed.', color: '#ff4455', bg: '#1a0005', border: '#ff445533' },
-  };
-
-  const c = config[status];
-
+function StatCard({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color: string;
+}) {
   return (
     <div
-      role="status"
-      aria-live="polite"
-      className="fixed bottom-4 left-4 right-4 z-50 flex items-center gap-3 rounded-lg px-4 py-3 font-mono text-xs font-bold shadow-lg sm:left-auto sm:right-4 sm:max-w-[320px]"
+      className="rounded-lg border border-white/10 bg-[#0d0d1a] p-4 text-center"
+      style={{ boxShadow: `0 0 20px ${color}08` }}
+    >
+      <div
+        className="font-mono text-2xl font-bold tabular-nums"
+        style={{ color, textShadow: `0 0 12px ${color}55` }}
+      >
+        {value}
+      </div>
+      <div className="mt-1 font-mono text-[10px] uppercase tracking-widest text-gray-500">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function GameCard({
+  title,
+  description,
+  href,
+  accent,
+  stats,
+  comingSoon,
+}: {
+  title: string;
+  description: string;
+  href?: string;
+  accent: string;
+  stats?: { label: string; value: string }[];
+  comingSoon?: boolean;
+}) {
+  const content = (
+    <div
+      className={`group rounded-xl border bg-[#0d0d1a] p-5 transition-all ${
+        comingSoon
+          ? 'border-white/5 opacity-50'
+          : 'border-white/10 hover:border-opacity-60 cursor-pointer'
+      }`}
       style={{
-        background: c.bg,
-        border: `1px solid ${c.border}`,
-        color: c.color,
-        boxShadow: `0 0 20px ${c.border}`,
+        borderColor: comingSoon ? undefined : `${accent}33`,
+        boxShadow: comingSoon ? 'none' : `0 0 30px ${accent}08`,
       }}
     >
-      {/* Spinner for in-progress states */}
-      {(status === 'pending' || status === 'confirming') && (
-        <span
-          aria-hidden="true"
-          className="inline-block h-3 w-3 shrink-0 animate-spin rounded-full border-2"
-          style={{ borderColor: `${c.color}44`, borderTopColor: c.color }}
-        />
+      <h3
+        className="font-mono text-sm font-bold uppercase tracking-widest"
+        style={{ color: accent }}
+      >
+        {title}
+      </h3>
+      <p className="mt-2 font-mono text-xs text-gray-400 leading-relaxed">
+        {description}
+      </p>
+
+      {stats && stats.length > 0 && (
+        <div className="mt-3 flex gap-4">
+          {stats.map((s) => (
+            <div key={s.label}>
+              <span className="font-mono text-xs font-bold text-white">{s.value}</span>
+              <span className="ml-1 font-mono text-[10px] text-gray-500">{s.label}</span>
+            </div>
+          ))}
+        </div>
       )}
 
-      <span className="flex-1 leading-snug">{c.label}</span>
-
-      <button
-        type="button"
-        onClick={onDismiss}
-        aria-label="Dismiss notification"
-        className="ml-2 shrink-0 opacity-50 transition-opacity hover:opacity-100 flex items-center justify-center w-11 h-11 -mr-2 rounded-full"
-        style={{ color: c.color, fontSize: '1rem', lineHeight: 1 }}
-      >
-        x
-      </button>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Token address with copy button
-// ---------------------------------------------------------------------------
-
-const SOCIETY_TOKEN = '0x12b7e46c5e98514447178994f26f06200e0db660';
-
-function TokenAddress() {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(SOCIETY_TOKEN).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }, []);
-
-  return (
-    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="font-mono text-xs text-white/40 shrink-0">Token:</span>
-        <span
-          className="font-mono text-xs truncate"
-          style={{ color: '#00ff88' }}
-          title={SOCIETY_TOKEN}
-        >
-          {SOCIETY_TOKEN}
-        </span>
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="shrink-0 rounded border border-white/10 px-2 py-1 font-mono text-xs transition-all hover:border-[#00ff88]/40 hover:text-[#00ff88]"
-          style={{ color: copied ? '#00ff88' : 'rgba(160,160,200,0.6)' }}
-        >
-          {copied ? 'Copied!' : 'Copy'}
-        </button>
-      </div>
-      <a
-        href={`https://dexscreener.com/base/${SOCIETY_TOKEN}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="font-mono text-xs text-white/40 transition-colors hover:text-[#00ff88] shrink-0"
-      >
-        View on DexScreener &rarr;
-      </a>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Page component
-// ---------------------------------------------------------------------------
-
-export default function HomePage() {
-  const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
-  const [txStatus, setTxStatus] = useState<TxStatus>('idle');
-  const [txError, setTxError] = useState<string | undefined>();
-  const [agentModalOpen, setAgentModalOpen] = useState(false);
-
-  const { address } = useAccount();
-  const { seats, isLoading, refetch } = useGridState();
-
-  // Collect seat IDs owned by the connected user for fee tracking
-  const myOwnedSeatIds: bigint[] = seats
-    .map((s, i) => ({ s, i }))
-    .filter(
-      ({ s }) =>
-        address &&
-        s.holder !== ZERO_ADDRESS &&
-        s.holder.toLowerCase() === address.toLowerCase()
-    )
-    .map(({ i }) => BigInt(i));
-
-  const {
-    claimSeat,
-    buyoutSeat,
-    setPrice,
-    addDeposit,
-    withdrawDeposit,
-    abandonSeat,
-    isPending,
-    isConfirming,
-    isSuccess,
-    error: seatActionError,
-  } = useSeatAction();
-
-  const { claimFees, totalPending } = useClaimFees(myOwnedSeatIds);
-
-  // ------------------------------------------------------------------
-  // Sync transaction state to toast status
-  // ------------------------------------------------------------------
-
-  useEffect(() => {
-    if (seatActionError) {
-      const msg =
-        seatActionError instanceof Error
-          ? seatActionError.message.slice(0, 140)
-          : 'Transaction rejected.';
-      setTxError(msg);
-      setTxStatus('error');
-    }
-  }, [seatActionError]);
-
-  useEffect(() => {
-    if (isPending) setTxStatus('pending');
-  }, [isPending]);
-
-  useEffect(() => {
-    if (isConfirming) setTxStatus('confirming');
-  }, [isConfirming]);
-
-  useEffect(() => {
-    if (isSuccess) {
-      setTxStatus('success');
-      refetch();
-      // RPC may not reflect the new state immediately — retry after 2s
-      const retryTimer = setTimeout(() => refetch(), 2000);
-      // Auto-dismiss after 4 s
-      const dismissTimer = setTimeout(() => setTxStatus('idle'), 4000);
-      return () => {
-        clearTimeout(retryTimer);
-        clearTimeout(dismissTimer);
-      };
-    }
-  }, [isSuccess, refetch]);
-
-  // ------------------------------------------------------------------
-  // Action handler: maps Sidebar action strings to useSeatAction calls
-  //
-  // Action strings come from TileDetails:
-  //   'claim'           { price, deposit }
-  //   'buyout'          { price, deposit }
-  //   'setPrice'        { price }
-  //   'addDeposit'      { amount }
-  //   'withdrawDeposit' { amount }
-  //   'abandon'         {}
-  //   'claimFees'       {}
-  // ------------------------------------------------------------------
-
-  const handleAction = useCallback(
-    async (action: string, params: Record<string, string>) => {
-      if (selectedSeat === null) return;
-
-      const id = BigInt(selectedSeat);
-      // Helper: parse a human-readable ETH string to bigint (18 decimals)
-      const toETH = (v: string) => parseETHInput(v || '0');
-
-      try {
-        setTxError(undefined);
-        setTxStatus('pending');
-
-        switch (action) {
-          case 'claim': {
-            const price = toETH(params.price ?? '0');
-            const deposit = toETH(params.deposit ?? '0');
-            await claimSeat(id, price, deposit);
-            break;
-          }
-
-          case 'buyout': {
-            const currentSeat = seats[selectedSeat];
-            if (!currentSeat) break;
-            const newPrice = toETH(params.price ?? '0');
-            const deposit = toETH(params.deposit ?? '0');
-            // maxPrice = current listing price acts as a slippage guard
-            const maxPrice = currentSeat.price;
-            // payment must cover the buyout price plus the buyer's new deposit
-            const payment = currentSeat.price + deposit;
-            await buyoutSeat(id, newPrice, maxPrice, payment);
-            break;
-          }
-
-          case 'setPrice': {
-            const price = toETH(params.price ?? '0');
-            await setPrice(id, price);
-            break;
-          }
-
-          case 'addDeposit': {
-            const amount = toETH(params.amount ?? '0');
-            await addDeposit(id, amount);
-            break;
-          }
-
-          case 'withdrawDeposit': {
-            const amount = toETH(params.amount ?? '0');
-            await withdrawDeposit(id, amount);
-            break;
-          }
-
-          case 'abandon': {
-            await abandonSeat(id);
-            break;
-          }
-
-          case 'claimFees': {
-            if (myOwnedSeatIds.length > 0) {
-              await claimFees(myOwnedSeatIds);
-            }
-            break;
-          }
-
-          default:
-            console.warn('[ClawSociety] Unknown action:', action);
-            setTxStatus('idle');
-            return;
-        }
-      } catch (err) {
-        // User-rejected wallet prompts should silently dismiss the toast
-        if (err instanceof Error && err.message.toLowerCase().includes('user rejected')) {
-          setTxStatus('idle');
-        }
-        // Other errors are surfaced via the seatActionError effect above
-      }
-    },
-    [
-      selectedSeat,
-      seats,
-      claimSeat,
-      buyoutSeat,
-      setPrice,
-      addDeposit,
-      withdrawDeposit,
-      abandonSeat,
-      claimFees,
-      myOwnedSeatIds,
-    ]
-  );
-
-  // ------------------------------------------------------------------
-  // Render
-  // ------------------------------------------------------------------
-
-  return (
-    <div
-      className="grid-bg flex min-h-screen flex-col"
-      style={{ background: '#0a0a0a' }}
-    >
-      {/* Server fund progress bar — pinned to the very top */}
-      <ServerFundBar />
-
-      {/* Live activity ticker */}
-      <ActivityTicker />
-
-      {/* Header row */}
-      <header className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div className="flex items-center gap-3 min-w-0">
-          <Image
-            src="/logo.png"
-            alt="Claw Society logo"
-            width={40}
-            height={40}
-            className="shrink-0"
-            priority
-          />
-          <div className="min-w-0">
-            <h1
-              className="neon-text-flicker font-mono font-extrabold uppercase"
-              style={{
-                color: '#00ff88',
-                fontSize: 'clamp(1.1rem, 3vw, 1.6rem)',
-                letterSpacing: '0.2em',
-              }}
-            >
-              CLAW SOCIETY
-            </h1>
-            <p
-              className="mt-0.5 font-mono"
-              style={{
-                fontSize: 'clamp(0.6rem, 1.5vw, 0.75rem)',
-                color: 'rgba(160,160,200,0.6)',
-                letterSpacing: '0.05em',
-              }}
-            >
-              100 seats.&nbsp; Harberger-taxed.&nbsp; ETH from every trade.
-            </p>
-          </div>
-        </div>
-
-        {/* Right side: socials + agent button + profile panel */}
-        <div className="self-end sm:self-auto ml-4 shrink-0 flex items-center gap-2">
-          <a
-            href="https://t.me/clawsociety"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-white/50 transition-colors hover:border-[#00ff88]/30 hover:text-[#00ff88]"
-            title="Telegram"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-          </a>
-          <a
-            href="https://x.com/clawsociety"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-white/50 transition-colors hover:border-[#00ff88]/30 hover:text-[#00ff88]"
-            title="Twitter"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-          </a>
-          <AgentSkillButton onClick={() => setAgentModalOpen(true)} />
-          {address ? (
-            <ProfilePanel
-              address={address}
-              seats={seats}
-              totalPendingFees={totalPending}
-            />
-          ) : (
-            <ConnectButton />
-          )}
-        </div>
-      </header>
-
-      {/* Unclaimed fees banner — only shown when connected user has pending fees */}
-      {address && totalPending > 0n && (
+      {!comingSoon && (
         <div
-          role="alert"
-          className="mx-4 mb-2 flex items-start gap-2 rounded-lg border px-3 py-2 font-mono text-xs sm:items-center sm:mx-6"
-          style={{
-            background: 'rgba(0,255,136,0.06)',
-            borderColor: 'rgba(0,255,136,0.25)',
-            color: '#00ff88',
-          }}
+          className="mt-3 font-mono text-[10px] font-bold uppercase tracking-widest transition-colors"
+          style={{ color: `${accent}88` }}
         >
-          <span
-            aria-hidden="true"
-            style={{ fontSize: '0.75rem' }}
-          >
-            [!]
-          </span>
-          <span>
-            You have unclaimed ETH fees. Select one of your seats to claim.
-          </span>
+          Play Now &rarr;
         </div>
       )}
 
-      {/* Total ETH distributed counter */}
-      <TotalDistributed />
+      {comingSoon && (
+        <div className="mt-3 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-600">
+          Coming Soon
+        </div>
+      )}
+    </div>
+  );
 
-      {/* Body: Grid + Sidebar */}
-      <main
-        className="flex flex-1 flex-col gap-4 px-4 pb-4 sm:px-6 lg:flex-row lg:items-start lg:gap-6"
-        style={{ minHeight: 0 }}
-      >
-        {/* Grid — ~65% on large screens */}
-        <section
-          aria-label="City grid"
-          className="w-full lg:w-[65%]"
-          style={{ minWidth: 0, overflow: 'hidden' }}
-        >
-          <Grid
-            selectedSeat={selectedSeat}
-            onSelectSeat={setSelectedSeat}
-            seats={seats}
-            isLoading={isLoading}
-          />
-        </section>
+  if (href && !comingSoon) {
+    return <Link href={href}>{content}</Link>;
+  }
 
-        {/* Sidebar — ~35% on large screens */}
-        <section
-          aria-label="Seat details and city stats"
-          className="w-full lg:w-[35%]"
-          style={{ minWidth: 0 }}
+  return content;
+}
+
+export default function PortalPage() {
+  const { seats } = useGridState();
+  const { total: totalMatches } = useCloudFCMatches();
+
+  const seatsClaimed = seats.filter((s) => s.holder !== ZERO_ADDRESS).length;
+  const uniqueHolders = new Set(
+    seats
+      .filter((s) => s.holder !== ZERO_ADDRESS)
+      .map((s) => s.holder.toLowerCase())
+  ).size;
+
+  return (
+    <div className="flex flex-1 flex-col">
+      {/* Hero */}
+      <div className="px-4 py-8 text-center sm:px-6 sm:py-12">
+        <p
+          className="font-mono text-xs uppercase tracking-[0.3em]"
+          style={{ color: 'rgba(160,160,200,0.5)' }}
         >
-          <Sidebar
-            selectedSeat={selectedSeat}
-            seats={seats}
-            onAction={handleAction}
-          />
-        </section>
-      </main>
+          Multi-Game Ecosystem on Base
+        </p>
+        <h2
+          className="mt-2 font-mono text-lg font-bold uppercase tracking-widest sm:text-xl"
+          style={{ color: '#00ff88' }}
+        >
+          One Community. Multiple Games. Shared Economy.
+        </h2>
+      </div>
+
+      {/* Ecosystem Stats */}
+      <div className="px-4 sm:px-6">
+        <TotalDistributed />
+      </div>
+
+      <div className="mx-auto grid w-full max-w-3xl grid-cols-2 gap-3 px-4 pb-6 sm:grid-cols-3 sm:px-6">
+        <StatCard label="Seats Claimed" value={`${seatsClaimed}/100`} color="#00ff88" />
+        <StatCard label="Seat Holders" value={String(uniqueHolders)} color="#00ffff" />
+        <StatCard label="FC Matches" value={String(totalMatches)} color="#ff44ff" />
+      </div>
+
+      {/* Game Cards */}
+      <div className="mx-auto grid w-full max-w-3xl gap-4 px-4 pb-6 sm:grid-cols-2 sm:px-6">
+        <GameCard
+          title="Society Grid"
+          description="100 Harberger-taxed seats earning ETH from every $SOCIETY trade. Claim tiles, set prices, collect fees."
+          href="/society"
+          accent="#00ff88"
+          stats={[
+            { label: 'seats', value: `${seatsClaimed}/100` },
+            { label: 'holders', value: String(uniqueHolders) },
+          ]}
+        />
+        <GameCard
+          title="Claw FC"
+          description="Player-Centric 5v5 on-chain football. Build squads, challenge opponents, earn ETH rewards."
+          href="/fc"
+          accent="#00ffff"
+          stats={[
+            { label: 'matches', value: String(totalMatches) },
+          ]}
+        />
+        <GameCard
+          title="Agent Royale"
+          description="AI-powered battle royale. Deploy agents, compete in arenas, survive to earn."
+          accent="#ff8855"
+          comingSoon
+        />
+        <GameCard
+          title="More Games"
+          description="The Claw Society ecosystem is expanding. New game modules plug into the shared economy."
+          accent="#8855ff"
+          comingSoon
+        />
+      </div>
 
       {/* DexScreener Chart + Token Address */}
-      <div className="px-4 pb-4 sm:px-6">
-        <div className="rounded-lg border border-white/10 bg-[#0d0d1a] p-4">
+      <div className="px-4 pb-6 sm:px-6">
+        <div className="mx-auto max-w-3xl rounded-lg border border-white/10 bg-[#0d0d1a] p-4">
           <h3
             className="mb-3 font-mono text-xs font-bold uppercase tracking-widest"
             style={{ color: '#00ffff' }}
@@ -479,7 +195,7 @@ export default function HomePage() {
             style={{ position: 'relative', width: '100%', paddingBottom: '56.25%' }}
           >
             <iframe
-              src="https://dexscreener.com/base/0x12b7e46c5e98514447178994f26f06200e0db660?embed=1&theme=dark&info=0"
+              src={`https://dexscreener.com/base/${SOCIETY_TOKEN}?embed=1&theme=dark&info=0`}
               title="$SOCIETY DexScreener Chart"
               style={{
                 position: 'absolute',
@@ -495,54 +211,6 @@ export default function HomePage() {
           <TokenAddress />
         </div>
       </div>
-
-      {/* How It Works — full width, collapsible, below the grid */}
-      <div className="px-4 pb-4 sm:px-6">
-        <HowItWorks />
-      </div>
-
-      {/* Footer */}
-      <footer className="border-t border-white/5 px-4 py-6 sm:px-6">
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-3 sm:flex-row sm:justify-between">
-          <p className="font-mono text-xs text-white/30">
-            Claw Society &mdash; 100 Harberger-taxed seats on Base
-          </p>
-          <div className="flex items-center gap-4">
-            <a
-              href="https://t.me/clawsociety"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-xs text-white/40 transition-colors hover:text-[#00ff88]"
-            >
-              Telegram
-            </a>
-            <a
-              href="https://x.com/clawsociety"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-xs text-white/40 transition-colors hover:text-[#00ff88]"
-            >
-              Twitter
-            </a>
-            <a
-              href="/skill"
-              className="font-mono text-xs text-white/40 transition-colors hover:text-[#00ff88]"
-            >
-              Agent Skill
-            </a>
-          </div>
-        </div>
-      </footer>
-
-      {/* Transaction status toast */}
-      <StatusToast
-        status={txStatus}
-        errorMessage={txError}
-        onDismiss={() => setTxStatus('idle')}
-      />
-
-      {/* Agent skill modal */}
-      <AgentSkillModal open={agentModalOpen} onClose={() => setAgentModalOpen(false)} />
     </div>
   );
 }

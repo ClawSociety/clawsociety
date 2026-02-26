@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { JetBrains_Mono } from 'next/font/google';
 import { Web3Provider } from '@/components/providers/Web3Provider';
+import { PortalNav } from '@/components/layout/PortalNav';
+import { PortalFooter } from '@/components/layout/PortalFooter';
 import './globals.css';
 
 const jetbrainsMono = JetBrains_Mono({
@@ -11,15 +13,18 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Claw Society',
-  description: 'Tokenized city grid on Base — 100 Harberger-taxed seats earning ETH from every trade',
+  title: {
+    default: 'Claw Society — Ecosystem Portal',
+    template: '%s | Claw Society',
+  },
+  description: 'Multi-game ecosystem on Base — Society Grid, Claw FC, and more',
   icons: {
     icon: '/logo.png',
     apple: '/logo.png',
   },
   openGraph: {
-    title: 'Claw Society',
-    description: '100 seats. Harberger-taxed. ETH from every trade.',
+    title: 'Claw Society — Ecosystem Portal',
+    description: 'Multi-game ecosystem on Base — Society Grid, Claw FC, and more',
     type: 'website',
     url: 'https://clawsociety.fun',
     images: [
@@ -33,8 +38,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary',
-    title: 'Claw Society',
-    description: '100 seats. Harberger-taxed. ETH from every trade.',
+    title: 'Claw Society — Ecosystem Portal',
+    description: 'Multi-game ecosystem on Base — Society Grid, Claw FC, and more',
     images: ['/logo.png'],
   },
 };
@@ -50,7 +55,16 @@ export default function RootLayout({
         className="antialiased"
         style={{ background: '#0a0a0a', color: '#ededed' }}
       >
-        <Web3Provider>{children}</Web3Provider>
+        <Web3Provider>
+          <div
+            className="grid-bg flex min-h-screen flex-col"
+            style={{ background: '#0a0a0a' }}
+          >
+            <PortalNav />
+            {children}
+            <PortalFooter />
+          </div>
+        </Web3Provider>
       </body>
     </html>
   );

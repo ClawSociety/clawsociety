@@ -63,9 +63,12 @@ export function playerName(tokenId: number, tier: Tier): string {
   return names[tokenId % names.length];
 }
 
-export function cardImageUrl(tokenId: number, tier: Tier): string {
-  const index = tokenId % 50;
-  return `/fc-cards/${tier}/${index}.png`;
+export function statColor(val: number): string {
+  if (val >= 85) return '#00ff88';
+  if (val >= 70) return '#00ffff';
+  if (val >= 50) return '#ffd700';
+  if (val >= 30) return '#ff8855';
+  return '#ff0055';
 }
 
 export const TIER_COLORS: Record<Tier, { border: string; glow: string; text: string; bg: string }> = {

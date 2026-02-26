@@ -12,6 +12,7 @@
     "@rainbow-me/rainbowkit": "^2.2.10",
     "@tanstack/react-query": "^5.90.21",
     "next": "14.2.35",
+    "pixi.js": "^8.16.0",
     "react": "^18",
     "react-dom": "^18",
     "react-markdown": "^10.1.0",
