@@ -10,5 +10,9 @@ export default function FCLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <div className="fc-stadium-bg relative flex flex-1 flex-col">
+      {children}
+    </div>
+  );
 }

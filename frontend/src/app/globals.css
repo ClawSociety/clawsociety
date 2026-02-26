@@ -90,6 +90,89 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
+   FC Stadium atmosphere — overrides grid-bg on /fc route
+   --------------------------------------------------------------------------- */
+
+.fc-stadium-bg {
+  background-image: none;
+  position: relative;
+}
+
+.fc-stadium-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 40% at 30% 0%, rgba(0, 255, 255, 0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 70% 0%, rgba(136, 85, 255, 0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 120% 30% at 50% 100%, rgba(0, 255, 255, 0.03) 0%, transparent 50%);
+}
+
+.fc-stadium-bg::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: url('/images/fc-stadium-bg.png') center/cover no-repeat;
+  opacity: 0.08;
+}
+
+/* FC CTA pulse — pulsing cyan glow ring */
+@keyframes fc-pulse-cta {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(0, 255, 255, 0);
+  }
+}
+
+.fc-pulse-cta {
+  animation: fc-pulse-cta 2s ease-in-out infinite;
+}
+
+/* FC squad counter pop */
+@keyframes fc-count-pop {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+.fc-count-pop {
+  display: inline-block;
+  animation: fc-count-pop 0.3s ease-out;
+}
+
+/* FC tab content fade-in */
+@keyframes fc-tab-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fc-tab-fade {
+  animation: fc-tab-fade 0.25s ease-out;
+}
+
+/* FC player card hover glow */
+.fc-card-hover {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fc-card-hover:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 0 8px 1px rgba(0, 255, 255, 0.2);
+}
+
+/* ---------------------------------------------------------------------------
    Tailwind utilities
    --------------------------------------------------------------------------- */
 
@@ -162,9 +245,13 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-pulse, .tile-available, .neon-text-flicker { animation: none !important; }
+  .skeleton-pulse, .tile-available, .neon-text-flicker,
+  .fc-pulse-cta, .fc-count-pop, .fc-tab-fade { animation: none !important; }
   .neon-text-flicker {
     text-shadow: 0 0 4px rgba(0,255,136,0.8), 0 0 12px rgba(0,255,136,0.6), 0 0 28px rgba(0,255,136,0.4);
+  }
+  .fc-card-hover:hover:not(:disabled) {
+    transform: none;
   }
   *, *::before, *::after {
     transition-duration: 0.01ms !important;

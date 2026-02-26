@@ -43,7 +43,7 @@ function PlayerCard({
     <button
       onClick={onToggle}
       disabled={player.locked}
-      className={`flex items-center gap-2 rounded border px-2 py-2 font-mono text-xs transition-all sm:py-1.5 ${
+      className={`fc-card-hover flex items-center gap-2 rounded border px-2 py-2 font-mono text-xs transition-all sm:py-1.5 ${
         player.locked
           ? 'cursor-not-allowed border-red-500/30 bg-red-500/5 opacity-50'
           : selected
@@ -284,17 +284,16 @@ export function FCPanel() {
   return (
     <div className="flex flex-col gap-3 font-mono">
       {/* Header */}
-      <div className="rounded-xl border border-white/10 bg-[#1a1a2e] p-4">
+      <div className="rounded-xl border border-white/[0.08] bg-[#1a1a2e]/80 p-4 backdrop-blur-sm">
         <div className="mb-3 flex items-center gap-2">
-          <span className="text-2xl">&#x26BD;</span>
           <div>
             <h2 className="text-sm font-bold uppercase tracking-widest text-cyan-400">
-              Claw FC
+              Manager Hub
             </h2>
-            <p className="text-[10px] text-gray-500">Player-Centric 5v5</p>
+            <p className="text-[10px] text-gray-500">Season 01</p>
           </div>
           {myPlayers.length > 0 && (
-            <span className="ml-auto rounded bg-white/5 px-2 py-0.5 text-[10px] text-gray-400">
+            <span className="ml-auto rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-0.5 text-[10px] text-cyan-400">
               {myPlayers.length} Players
             </span>
           )}
@@ -351,38 +350,85 @@ export function FCPanel() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1">
-        {(['squad', 'matches', 'packs', 'standings', 'creator'] as Tab[]).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className="flex-1 rounded py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors"
-            style={{
-              color: tab === t ? '#0d0d1a' : '#00ffff',
-              background: tab === t ? '#00ffff' : 'transparent',
-              border: `1px solid ${tab === t ? '#00ffff' : '#00ffff33'}`,
-            }}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      {(() => {
+        const tabs: { key: Tab; icon: string; label: string }[] = [
+          { key: 'squad', icon: '\u{1F6E1}', label: 'Squad' },
+          { key: 'matches', icon: '\u{2694}', label: 'Matches' },
+          { key: 'packs', icon: '\u{1F4E6}', label: 'Packs' },
+          { key: 'standings', icon: '\u{1F3C6}', label: 'Standings' },
+          { key: 'creator', icon: '\u{1F3A8}', label: 'Creator' },
+        ];
+        const tabIndex = tabs.findIndex(t => t.key === tab);
+        return (
+          <div className="relative rounded-lg border border-white/[0.08] bg-[#0d0d1a]/80 p-1">
+            <div className="relative flex">
+              {/* Animated underline */}
+              <div
+                className="absolute bottom-0 h-[2px] bg-cyan-400 transition-all duration-300"
+                style={{
+                  width: '20%',
+                  transform: `translateX(${tabIndex * 100}%)`,
+                  boxShadow: '0 0 8px rgba(0, 255, 255, 0.5)',
+                }}
+              />
+              {tabs.map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  className={`flex flex-1 flex-col items-center gap-0.5 rounded py-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                    tab === t.key
+                      ? 'bg-cyan-400/5 text-cyan-400'
+                      : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  <span className="text-sm leading-none">{t.icon}</span>
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ─── Squad Builder ─── */}
       {tab === 'squad' && (
-        <div className="rounded-lg border border-white/10 bg-[#0d0d1a] p-3">
+        <div className="fc-tab-fade rounded-lg border border-white/10 bg-[#0d0d1a]/80 p-3 backdrop-blur-sm" key="squad">
           <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-cyan-400">
-            Build Your Squad ({selectedPlayers.length}/5)
+            Build Your Squad <span className="fc-count-pop" key={selectedPlayers.length}>({selectedPlayers.length}/5)</span>
           </h3>
 
           {!address ? (
             <p className="text-xs text-gray-500">Connect wallet to build squad.</p>
           ) : myPlayers.length === 0 ? (
-            <div className="text-center py-4">
-              <p className="text-xs text-gray-500 mb-2">No players found.</p>
+            <div className="flex flex-col items-center py-6">
+              {/* Mini pitch silhouette */}
+              <div className="relative mb-4 h-[160px] w-[280px] rounded-lg border border-green-900/40 bg-gradient-to-b from-green-950/30 to-green-950/10">
+                {/* Center line */}
+                <div className="absolute left-0 right-0 top-1/2 h-px bg-green-800/30" />
+                {/* Center circle */}
+                <div className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-green-800/30" />
+                {/* Position markers */}
+                {[
+                  { left: '50%', top: '85%', label: 'GK' },
+                  { left: '25%', top: '60%', label: 'DEF' },
+                  { left: '75%', top: '60%', label: 'DEF' },
+                  { left: '50%', top: '40%', label: 'MID' },
+                  { left: '50%', top: '15%', label: 'FWD' },
+                ].map(pos => (
+                  <div
+                    key={pos.label + pos.left}
+                    className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-dashed border-gray-600/50 bg-gray-800/30"
+                    style={{ left: pos.left, top: pos.top }}
+                  >
+                    <span className="text-[6px] text-gray-600">{pos.label}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="mb-1 text-xs text-gray-400">No players yet</p>
+              <p className="mb-3 text-[10px] text-gray-600">Open a pack to recruit your first squad</p>
               <button
                 onClick={() => setTab('packs')}
-                className="rounded bg-cyan-500 px-4 py-2 text-xs font-bold uppercase text-black hover:bg-cyan-400"
+                className="fc-pulse-cta rounded bg-cyan-500 px-4 py-2 text-xs font-bold uppercase text-black hover:bg-cyan-400"
               >
                 Open a Pack
               </button>
@@ -543,7 +589,7 @@ export function FCPanel() {
                     pendingAcceptMatch
                       ? 'flex-1 bg-yellow-500 hover:bg-yellow-400'
                       : 'bg-cyan-500 hover:bg-cyan-400'
-                  }`}
+                  } ${selectedPlayers.length === 5 && !isPending && matchStep === '' ? 'fc-pulse-cta' : ''}`}
                 >
                   {matchStep === 'squad'
                     ? 'Creating Squad...'
@@ -563,9 +609,9 @@ export function FCPanel() {
 
       {/* ─── Match Board ─── */}
       {tab === 'matches' && (
-        <div className="space-y-3">
+        <div className="fc-tab-fade space-y-3" key="matches">
           {/* Open matches */}
-          <div className="rounded-lg border border-white/10 bg-[#0d0d1a] p-3">
+          <div className="rounded-lg border border-white/10 bg-[#0d0d1a]/80 p-3 backdrop-blur-sm">
             <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-yellow-500">
               Open Challenges ({openMatches.length})
             </h3>
@@ -586,7 +632,7 @@ export function FCPanel() {
           </div>
 
           {/* Recent results */}
-          <div className="rounded-lg border border-white/10 bg-[#0d0d1a] p-3">
+          <div className="rounded-lg border border-white/10 bg-[#0d0d1a]/80 p-3 backdrop-blur-sm">
             <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">
               Recent Results
             </h3>
@@ -608,14 +654,14 @@ export function FCPanel() {
       )}
 
       {/* ─── Packs (Lootbox) ─── */}
-      {tab === 'packs' && <LootboxPanel onGoToSquad={() => setTab('squad')} />}
+      {tab === 'packs' && <div className="fc-tab-fade" key="packs"><LootboxPanel onGoToSquad={() => setTab('squad')} /></div>}
 
       {/* ─── Creator ─── */}
-      {tab === 'creator' && <PlayerCreator onGoToPacks={() => setTab('packs')} />}
+      {tab === 'creator' && <div className="fc-tab-fade" key="creator"><PlayerCreator onGoToPacks={() => setTab('packs')} /></div>}
 
       {/* ─── Standings ─── */}
       {tab === 'standings' && (
-        <div className="rounded-lg border border-white/10 bg-[#0d0d1a] p-3">
+        <div className="fc-tab-fade rounded-lg border border-white/10 bg-[#0d0d1a]/80 p-3 backdrop-blur-sm" key="standings">
           <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-yellow-500">
             Season Standings
           </h3>

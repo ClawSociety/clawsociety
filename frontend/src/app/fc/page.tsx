@@ -67,7 +67,7 @@ function RuleCard({
 
 export default function FCPage() {
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="relative z-10 flex flex-1 flex-col">
       {/* ── Hero ── */}
       <section className="relative flex h-[300px] items-center justify-center overflow-hidden bg-[#0a0a0a]">
         <Image
@@ -82,7 +82,7 @@ export default function FCPage() {
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(to bottom, rgba(10,10,10,0.8) 0%, rgba(10,10,10,0.5) 40%, rgba(10,10,10,0.9) 100%)',
+              'linear-gradient(to bottom, rgba(10,10,10,0.85) 0%, rgba(10,10,10,0.5) 40%, rgba(10,10,10,0.95) 100%)',
           }}
         />
         <div className="relative z-10 flex flex-col items-center px-4 text-center">
@@ -93,18 +93,23 @@ export default function FCPage() {
             height={120}
             className="object-contain drop-shadow-[0_0_24px_rgba(0,255,255,0.4)]"
           />
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
             <p className="font-mono text-sm uppercase tracking-[0.15em] text-white/50">
               Player-Centric 5v5 On-Chain Football
             </p>
             <span className="rounded border border-[#00ffff]/40 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-[#00ffff]">
               Alpha
             </span>
+            <span className="rounded border border-[#ffd700]/40 bg-[#ffd700]/5 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-[#ffd700]">
+              Season 01
+            </span>
           </div>
           <p className="mt-2 font-mono text-xs text-gray-400">
             Build squads. Pick formations. Earn ETH.
           </p>
         </div>
+        {/* Bottom fade for smooth transition */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
       </section>
 
       {/* ── Live Demo Match ── */}
