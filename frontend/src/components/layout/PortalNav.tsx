@@ -96,6 +96,15 @@ export function PortalNav() {
         {/* Right side: socials + agent button + profile panel */}
         <div className="self-end sm:self-auto ml-4 shrink-0 flex items-center gap-2">
           <a
+            href="https://phantom.app/download"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-white/50 transition-colors hover:border-purple-500/40 hover:text-purple-400"
+            title="Get Phantom Wallet"
+          >
+            <svg width="16" height="16" viewBox="0 0 128 128" fill="currentColor"><path d="M110.584 64.914c-1.768 0-3.202-1.434-3.202-3.202 0-24.239-19.66-43.899-43.898-43.899S19.585 37.473 19.585 61.712c0 1.768-1.434 3.202-3.202 3.202s-3.202-1.434-3.202-3.202C13.181 33.926 35.698 11.41 63.484 11.41s50.303 22.517 50.303 50.302c0 1.768-1.435 3.202-3.203 3.202zm-15.61 0c-1.768 0-3.202-1.434-3.202-3.202 0-15.634-12.721-28.289-28.288-28.289S35.196 46.078 35.196 61.712c0 1.768-1.434 3.202-3.202 3.202s-3.202-1.434-3.202-3.202c0-19.168 15.524-34.692 34.692-34.692s34.692 15.524 34.692 34.692c0 1.768-1.434 3.202-3.202 3.202zm-15.61 0c-1.768 0-3.202-1.434-3.202-3.202 0-7.03-5.688-12.678-12.678-12.678S50.806 54.682 50.806 61.712c0 1.768-1.434 3.202-3.202 3.202s-3.202-1.434-3.202-3.202c0-10.564 8.518-19.082 19.082-19.082s19.082 8.518 19.082 19.082c0 1.768-1.434 3.202-3.202 3.202zm-15.61 3.202a6.404 6.404 0 1 0 0-12.808 6.404 6.404 0 0 0 0 12.808z" fillRule="evenodd"/></svg>
+          </a>
+          <a
             href="https://t.me/clawsociety"
             target="_blank"
             rel="noopener noreferrer"
