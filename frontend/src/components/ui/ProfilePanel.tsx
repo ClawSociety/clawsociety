@@ -15,6 +15,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback, CSSProperties } from 'react';
+import { useDisconnect } from 'wagmi';
 import { useProfile } from '@/hooks/useProfile';
 import { Seat } from '@/lib/types';
 import { formatETH, shortenAddress, ZERO_ADDRESS } from '@/lib/utils';
@@ -137,6 +138,7 @@ interface ProfilePanelProps {
 // ---------------------------------------------------------------------------
 
 export function ProfilePanel({ address, seats, totalPendingFees }: ProfilePanelProps) {
+  const { disconnect } = useDisconnect();
   const { profile, setNickname, setAvatarUrl } = useProfile(address);
   const [open, setOpen] = useState(false);
   const [nicknameInput, setNicknameInput] = useState('');
@@ -254,16 +256,16 @@ export function ProfilePanel({ address, seats, totalPendingFees }: ProfilePanelP
         }
       >
         <Avatar address={address} avatarUrl={profile.avatarUrl} size={24} />
-        <span>{displayName}</span>
+        <span className="hidden sm:inline">{displayName}</span>
         <span
           aria-hidden="true"
+          className="hidden sm:inline-block"
           style={{
             color: 'rgba(0,255,136,0.5)',
             fontSize: '0.6rem',
             marginLeft: '2px',
             transform: open ? 'rotate(180deg)' : 'rotate(0)',
             transition: 'transform 0.2s ease',
-            display: 'inline-block',
           }}
         >
           v
@@ -458,6 +460,43 @@ export function ProfilePanel({ address, seats, totalPendingFees }: ProfilePanelP
             }}
           >
             {saved ? 'Saved!' : 'Save Profile'}
+          </button>
+
+          {/* Disconnect button */}
+          <button
+            type="button"
+            onClick={() => { disconnect(); setOpen(false); }}
+            style={{
+              width: '100%',
+              padding: '8px',
+              minHeight: '44px',
+              marginTop: '8px',
+              background: 'rgba(255,50,80,0.08)',
+              border: '1px solid rgba(255,50,80,0.3)',
+              borderRadius: '4px',
+              color: '#ff3250',
+              fontFamily: 'var(--font-jetbrains-mono), monospace',
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) =>
+              Object.assign(e.currentTarget.style, {
+                background: 'rgba(255,50,80,0.15)',
+                borderColor: 'rgba(255,50,80,0.6)',
+              })
+            }
+            onMouseLeave={(e) =>
+              Object.assign(e.currentTarget.style, {
+                background: 'rgba(255,50,80,0.08)',
+                borderColor: 'rgba(255,50,80,0.3)',
+              })
+            }
+          >
+            Disconnect
           </button>
         </div>
         </>
