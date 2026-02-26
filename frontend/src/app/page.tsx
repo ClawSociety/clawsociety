@@ -201,7 +201,7 @@ export default function PortalPage() {
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(to bottom, rgba(10,10,10,0.85) 0%, transparent 40%, transparent 60%, rgba(10,10,10,1) 100%)',
+              'linear-gradient(to bottom, rgba(10,10,10,0.9) 0%, rgba(10,10,10,0.7) 40%, rgba(10,10,10,0.65) 60%, rgba(10,10,10,1) 100%)',
           }}
         />
 
@@ -210,15 +210,19 @@ export default function PortalPage() {
             className="font-mono text-4xl font-extrabold uppercase tracking-[0.2em] sm:text-5xl md:text-6xl"
             style={{
               color: '#00ff88',
-              textShadow: '0 0 40px rgba(0,255,136,0.3), 0 0 80px rgba(0,255,136,0.1)',
+              textShadow: '0 0 40px rgba(0,255,136,0.4), 0 0 80px rgba(0,255,136,0.15)',
             }}
           >
             Claw Society
           </h1>
-          <p className="mt-3 font-mono text-sm uppercase tracking-[0.25em] text-white/50 sm:text-base">
+          <p className="mt-3 font-mono text-sm font-semibold uppercase tracking-[0.25em] text-white/80 sm:text-base"
+            style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}
+          >
             Multi-Game Ecosystem on Base
           </p>
-          <p className="mx-auto mt-4 max-w-lg font-mono text-xs leading-relaxed text-gray-400 sm:text-sm">
+          <p className="mx-auto mt-4 max-w-lg font-mono text-xs leading-relaxed text-gray-200/80 sm:text-sm"
+            style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+          >
             100 Harberger-taxed seats. 5v5 on-chain football. AI battle royale.
             One token economy connecting every game.
           </p>
