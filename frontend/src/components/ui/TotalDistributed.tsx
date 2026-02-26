@@ -266,9 +266,10 @@ export function TotalDistributed() {
       <div
         className="relative overflow-hidden rounded-lg border px-4 py-3 font-mono"
         style={{
-          background: 'linear-gradient(135deg, rgba(0,255,136,0.04) 0%, rgba(0,255,255,0.03) 100%)',
-          borderColor: 'rgba(0,255,136,0.18)',
-          boxShadow: '0 0 24px rgba(0,255,136,0.06), inset 0 0 40px rgba(0,255,136,0.02)',
+          background: 'linear-gradient(135deg, rgba(0,255,136,0.06) 0%, rgba(0,255,255,0.04) 100%), rgba(10,10,26,0.9)',
+          borderColor: 'rgba(0,255,136,0.25)',
+          boxShadow: '0 0 24px rgba(0,255,136,0.08), inset 0 0 40px rgba(0,255,136,0.03)',
+          backdropFilter: 'blur(12px)',
         }}
       >
         {/* Subtle corner accent lines */}

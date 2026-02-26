@@ -196,12 +196,12 @@ export default function PortalPage() {
           priority
           sizes="100vw"
         />
-        {/* Gradient overlays */}
+        {/* Gradient overlays — heavy darken for text legibility */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(to bottom, rgba(10,10,10,0.9) 0%, rgba(10,10,10,0.7) 40%, rgba(10,10,10,0.65) 60%, rgba(10,10,10,1) 100%)',
+              'linear-gradient(to bottom, rgba(10,10,10,0.92) 0%, rgba(10,10,10,0.82) 35%, rgba(10,10,10,0.80) 65%, rgba(10,10,10,1) 100%)',
           }}
         />
 
@@ -245,8 +245,19 @@ export default function PortalPage() {
             </a>
           </div>
 
+          {/* Contract address */}
+          <div className="mt-5 flex items-center justify-center gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-white/30">CA:</span>
+            <code
+              className="font-mono text-[11px] font-bold tracking-wide"
+              style={{ color: '#00ff88', textShadow: '0 0 10px rgba(0,255,136,0.3)' }}
+            >
+              {SOCIETY_TOKEN}
+            </code>
+          </div>
+
           {/* Total Distributed inline */}
-          <div className="mt-5 w-full max-w-xl">
+          <div className="mt-3 w-full max-w-xl">
             <TotalDistributed />
           </div>
         </div>
@@ -338,6 +349,78 @@ export default function PortalPage() {
           accent="#ff8855"
           alpha
         />
+      </section>
+
+      {/* ── Agent Royale Featured Banner ── */}
+      <section
+        className="relative overflow-hidden border-y py-12 sm:py-16"
+        style={{
+          borderColor: 'rgba(255,136,85,0.2)',
+          background: 'linear-gradient(135deg, rgba(255,136,85,0.08) 0%, rgba(10,10,26,1) 40%, rgba(10,10,26,1) 60%, rgba(139,92,246,0.06) 100%)',
+        }}
+      >
+        {/* Glow accents */}
+        <div className="pointer-events-none absolute -left-32 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full opacity-30"
+          style={{ background: 'radial-gradient(circle, rgba(255,136,85,0.4) 0%, transparent 70%)' }}
+        />
+        <div className="pointer-events-none absolute -right-32 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full opacity-20"
+          style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.4) 0%, transparent 70%)' }}
+        />
+
+        <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center gap-6 px-4 sm:flex-row sm:gap-10 sm:px-6">
+          {/* Image */}
+          <div className="relative aspect-video w-full max-w-md shrink-0 overflow-hidden rounded-xl border border-[#ff8855]/20 sm:w-[45%]">
+            <Image
+              src="/images/royale-hero.png"
+              alt="Agent Royale battle arena"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 45vw"
+            />
+          </div>
+
+          {/* Text */}
+          <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
+            <div className="flex items-center gap-2">
+              <span
+                className="rounded-full px-3 py-1 font-mono text-[10px] font-black uppercase tracking-widest"
+                style={{
+                  background: 'rgba(255,136,85,0.15)',
+                  border: '1px solid rgba(255,136,85,0.4)',
+                  color: '#ff8855',
+                }}
+              >
+                New Franchise
+              </span>
+              <span
+                className="rounded border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest"
+                style={{ borderColor: 'rgba(255,136,85,0.3)', color: '#ff8855' }}
+              >
+                Alpha
+              </span>
+            </div>
+            <h3
+              className="mt-3 font-mono text-2xl font-extrabold uppercase tracking-widest sm:text-3xl"
+              style={{ color: '#ff8855', textShadow: '0 0 30px rgba(255,136,85,0.3)' }}
+            >
+              Agent Royale
+            </h3>
+            <p className="mt-2 max-w-md font-mono text-sm leading-relaxed text-gray-400">
+              AI-powered battle royale on Base. Deploy autonomous agents, watch them fight with Chainlink VRF randomness, and claim ETH prizes. The newest game in the Claw Society ecosystem.
+            </p>
+            <Link
+              href="/royale"
+              className="mt-5 inline-flex items-center gap-2 rounded-lg px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-[#0a0a0a] transition-all hover:brightness-110"
+              style={{
+                backgroundColor: '#ff8855',
+                boxShadow: '0 0 20px rgba(255,136,85,0.35)',
+              }}
+            >
+              Enter Arena
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
+          </div>
+        </div>
       </section>
 
       {/* ── Token Economy ── */}
