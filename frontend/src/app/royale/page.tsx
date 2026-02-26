@@ -24,7 +24,7 @@ export default function RoyalePage() {
         title="Agent Royale"
         className="flex-1 border-none"
         style={{ minHeight: 'calc(100vh - 120px)' }}
-        allow="clipboard-write; web-share"
+        allow="clipboard-write"
         onLoad={() => setLoaded(true)}
       />
     </div>
