@@ -152,10 +152,10 @@ function GameShowcase({
       {href && !comingSoon && (
         <Link
           href={href}
-          className="mt-4 inline-flex w-fit items-center gap-2 rounded-lg border px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest transition-all hover:bg-white/5"
+          className="mt-4 inline-flex w-fit items-center gap-2 rounded-lg px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-[#0a0a0a] transition-all hover:brightness-110"
           style={{
-            borderColor: `${accent}44`,
-            color: accent,
+            backgroundColor: accent,
+            boxShadow: `0 0 16px ${accent}44`,
           }}
         >
           Play Now
@@ -227,7 +227,7 @@ export default function PortalPage() {
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/society"
-              className="rounded-lg border border-[#00ff88]/40 bg-[#00ff88]/10 px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-[#00ff88] transition-all hover:bg-[#00ff88]/20"
+              className="rounded-lg bg-[#00ff88] px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-[#0a0a0a] shadow-[0_0_20px_rgba(0,255,136,0.3)] transition-all hover:bg-[#33ffaa] hover:shadow-[0_0_30px_rgba(0,255,136,0.5)]"
             >
               Enter Portal
             </Link>
@@ -235,7 +235,7 @@ export default function PortalPage() {
               href={`https://dexscreener.com/base/${SOCIETY_TOKEN}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg border border-white/20 px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-white/70 transition-all hover:border-white/40 hover:text-white"
+              className="rounded-lg border-2 border-white/30 bg-white/10 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-white backdrop-blur-sm transition-all hover:border-white/50 hover:bg-white/20"
             >
               Buy $SOCIETY
             </a>
@@ -387,13 +387,13 @@ export default function PortalPage() {
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-3 px-4">
           <Link
             href="/society"
-            className="rounded-lg border border-[#00ff88]/30 px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-[#00ff88] transition-all hover:bg-[#00ff88]/10"
+            className="rounded-lg bg-[#00ff88] px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-[#0a0a0a] shadow-[0_0_16px_rgba(0,255,136,0.3)] transition-all hover:bg-[#33ffaa]"
           >
             Claim a Seat
           </Link>
           <Link
             href="/fc"
-            className="rounded-lg border border-[#00ffff]/30 px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-[#00ffff] transition-all hover:bg-[#00ffff]/10"
+            className="rounded-lg bg-[#00ffff] px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-[#0a0a0a] shadow-[0_0_16px_rgba(0,255,255,0.3)] transition-all hover:bg-[#44ffff]"
           >
             Open a Pack
           </Link>
@@ -401,7 +401,7 @@ export default function PortalPage() {
             href="https://t.me/clawsociety"
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-lg border border-white/20 px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-white/60 transition-all hover:border-white/40 hover:text-white"
+            className="rounded-lg border-2 border-white/30 bg-white/10 px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-white backdrop-blur-sm transition-all hover:border-white/50 hover:bg-white/20"
           >
             Join Telegram
           </a>
