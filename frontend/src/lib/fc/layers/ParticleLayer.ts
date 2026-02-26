@@ -5,7 +5,7 @@
 
 import { Container, Graphics } from 'pixi.js';
 
-const PADDING = 24;
+const PADDING = 60;
 const POOL_SIZE = 250;
 const DRAG = 0.98;
 const GRAVITY = 0.05;

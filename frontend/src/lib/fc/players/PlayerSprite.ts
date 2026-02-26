@@ -9,8 +9,8 @@ import type { PlayerState } from '../types';
 import { bakeAtlas, getFrameTexture } from './PlayerTextureCache';
 import { SPRITE_H } from './PlayerSpriteBuilder';
 
-// Display scale: 24×32 native → 72×96 on screen
-const SCALE = 3;
+// Display scale: 24×32 native → 48×64 on screen
+const SCALE = 2;
 
 export class PlayerSprite {
   readonly root: Container;
@@ -29,7 +29,7 @@ export class PlayerSprite {
 
     // Shadow ellipse
     this.shadow = new Graphics();
-    this.shadow.ellipse(0, 0, 18, 5).fill({ color: 0x000000, alpha: 0.35 });
+    this.shadow.ellipse(0, 0, 12, 4).fill({ color: 0x000000, alpha: 0.35 });
     this.shadow.y = (SPRITE_H * SCALE) / 2; // bottom of sprite
     this.shadow.zIndex = 0;
     this.root.addChild(this.shadow);

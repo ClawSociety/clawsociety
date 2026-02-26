@@ -130,7 +130,7 @@ export class EffectsLayer extends Container {
     this.shake.intensity = 8;
 
     // Zoom
-    this.zoomTarget = 1.3;
+    this.zoomTarget = 1.1;
     this.zoomDecay = 1200;
   }
 
@@ -147,6 +147,38 @@ export class EffectsLayer extends Container {
   triggerSave() {
     this.shake.decay = 80;
     this.shake.intensity = 2;
+  }
+
+  // ─── Command-driven API (for CinematicDirector) ──────────
+
+  /** Set flash color/alpha directly */
+  setFlash(color: number, alpha: number) {
+    this.flash.clear();
+    this.flash.rect(0, 0, this.screenW, this.screenH).fill(color);
+    this.flash.alpha = alpha;
+  }
+
+  /** Show/hide goal text with team color */
+  setGoalTextVisible(visible: boolean, team: Team) {
+    this.goalText.visible = visible;
+    if (visible) {
+      const color = team === 'home'
+        ? parseInt(this.cfg.home.primary.replace('#', ''), 16)
+        : parseInt(this.cfg.away.primary.replace('#', ''), 16);
+      (this.goalText.style as TextStyle).fill = color;
+      (this.goalText.style as TextStyle).dropShadow = { color, blur: 30, distance: 0, alpha: 1, angle: 0 };
+      this.goalText.alpha = 1;
+      this.goalText.scale.set(1);
+    }
+  }
+
+  /** Trigger a hit-freeze (pause rendering for durationMs) */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  triggerHitFreeze(_durationMs: number) {
+    // Hit freeze is handled by CinematicDirector's timeScale.
+    // This is a hook for future per-layer freeze effects.
+    this.shake.decay = Math.max(this.shake.decay, 100);
+    this.shake.intensity = Math.max(this.shake.intensity, 4);
   }
 
   update(event: MatchEvent | null, eventProgress: number, deltaMs: number) {

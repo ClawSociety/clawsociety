@@ -16,6 +16,17 @@ interface PitchCanvasProps {
   awayPower?: number;
   width?: number;
   height?: number;
+  /** Optional NFT token IDs for home team players (5 entries) */
+  homePlayerIds?: number[];
+  /** Optional NFT token IDs for away team players (5 entries) */
+  awayPlayerIds?: number[];
+  /** Optional stats for home team players (5 entries) */
+  homeStats?: { speed: number; passing: number; shooting: number; defense: number; stamina: number }[];
+  /** Optional stats for away team players (5 entries) */
+  awayStats?: { speed: number; passing: number; shooting: number; defense: number; stamina: number }[];
+  /** Optional formation for home/away teams */
+  homeFormation?: 'balanced' | 'offensive' | 'defensive';
+  awayFormation?: 'balanced' | 'offensive' | 'defensive';
 }
 
 // ─────────────────── Component ──────────────────────────────
@@ -28,6 +39,12 @@ export function PitchCanvas({
   awayPower,
   width = 540,
   height = 340,
+  homePlayerIds,
+  awayPlayerIds,
+  homeStats,
+  awayStats,
+  homeFormation,
+  awayFormation,
 }: PitchCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<{ destroy: () => void; togglePause: () => void; isPaused: () => boolean; setSpeed: (s: number) => void; seek: (p: number) => void } | null>(null);
@@ -42,7 +59,12 @@ export function PitchCanvas({
       homeGoals, awayGoals, seed,
       homePower: homePower || undefined,
       awayPower: awayPower || undefined,
+      homeStats,
+      awayStats,
+      homeFormation,
+      awayFormation,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [homeGoals, awayGoals, seed, homePower, awayPower],
   );
 
@@ -59,7 +81,28 @@ export function PitchCanvas({
 
       if (destroyed) return;
 
-      const renderer = new PixiMatchRenderer(timeline, undefined, homePower ?? 0, awayPower ?? 0);
+      // Build NFT identity arrays if player IDs provided
+      let nftHome: { tokenId: number; stats: { speed: number; passing: number; shooting: number; defense: number; stamina: number }; tier: 'bronze' | 'silver' | 'gold' | 'diamond' }[] | undefined;
+      let nftAway: typeof nftHome;
+
+      if (homePlayerIds?.length === 5 && homeStats?.length === 5) {
+        nftHome = homePlayerIds.map((id, i) => {
+          const s = homeStats[i];
+          const avg = (s.speed + s.passing + s.shooting + s.defense + s.stamina) / 5;
+          const tier = avg >= 80 ? 'diamond' as const : avg >= 60 ? 'gold' as const : avg >= 40 ? 'silver' as const : 'bronze' as const;
+          return { tokenId: id, stats: s, tier };
+        });
+      }
+      if (awayPlayerIds?.length === 5 && awayStats?.length === 5) {
+        nftAway = awayPlayerIds.map((id, i) => {
+          const s = awayStats[i];
+          const avg = (s.speed + s.passing + s.shooting + s.defense + s.stamina) / 5;
+          const tier = avg >= 80 ? 'diamond' as const : avg >= 60 ? 'gold' as const : avg >= 40 ? 'silver' as const : 'bronze' as const;
+          return { tokenId: id, stats: s, tier };
+        });
+      }
+
+      const renderer = new PixiMatchRenderer(timeline, undefined, homePower ?? 0, awayPower ?? 0, nftHome, nftAway);
       rendererRef.current = renderer;
 
       await renderer.init(canvas, width, height, () => setIsFinished(true));

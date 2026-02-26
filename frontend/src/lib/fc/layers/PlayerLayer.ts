@@ -7,9 +7,9 @@ import { Container } from 'pixi.js';
 import type { PlayerFrame, Team, MatchRenderConfig } from '../types';
 import { HOME_FORMATION, AWAY_FORMATION } from '../types';
 import { PlayerSprite } from '../players/PlayerSprite';
-import { deriveAppearance } from '../players/PlayerFactory';
+import { deriveAppearance, type PlayerAppearance } from '../players/PlayerFactory';
 
-const PADDING = 24;
+const PADDING = 60;
 
 interface SpriteEntry {
   sprite: PlayerSprite;
@@ -22,19 +22,29 @@ export class PlayerLayer extends Container {
   private pw = 0;
   private ph = 0;
 
-  constructor(cfg: MatchRenderConfig, screenW: number, screenH: number) {
+  /**
+   * @param cfg - render config for team colors
+   * @param screenW - screen width
+   * @param screenH - screen height
+   * @param appearances - optional 10 PlayerAppearance entries (5 home + 5 away).
+   *                      If provided, uses NFT-derived appearances instead of team defaults.
+   */
+  constructor(cfg: MatchRenderConfig, screenW: number, screenH: number, appearances?: PlayerAppearance[]) {
     super();
     this.pw = screenW - PADDING * 2;
     this.ph = screenH - PADDING * 2;
     this.sortableChildren = true;
 
     // Create 10 pixel art player sprites
+    let idx = 0;
     for (const formation of [HOME_FORMATION, AWAY_FORMATION]) {
       for (const player of formation) {
-        const appearance = deriveAppearance(player.team, player.index, player.role, cfg);
+        const appearance = appearances?.[idx]
+          ?? deriveAppearance(player.team, player.index, player.role, cfg);
         const sprite = new PlayerSprite(appearance);
         this.addChild(sprite.root);
         this.sprites.push({ sprite, team: player.team, index: player.index });
+        idx++;
       }
     }
   }
