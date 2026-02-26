@@ -7,9 +7,10 @@ import { useLootbox } from '@/hooks/useCloudFCLootbox';
 import { useMyPlayers } from '@/hooks/useCloudFC';
 import type { CloudFCPlayer, PlayerStats } from '@/lib/fc/types';
 import {
-  playerTier, playerName, cardImageUrl,
-  TIER_COLORS, TIER_LABELS, TIER_STARS,
+  playerTier, playerName,
+  TIER_COLORS, TIER_LABELS,
 } from '@/lib/fc/playerNames';
+import { PixelCard } from './PixelCard';
 
 // ─────────────────── Helpers ─────────────────────────────────
 
@@ -41,9 +42,6 @@ function PlayerCardFull({
   const [isFlipped, setIsFlipped] = useState(false);
   const avg = avgStat(player.stats);
   const tier = playerTier(avg);
-  const colors = TIER_COLORS[tier];
-  const name = playerName(player.id, tier);
-  const imgUrl = cardImageUrl(player.id, tier);
 
   useEffect(() => {
     if (revealed) {
@@ -64,98 +62,13 @@ function PlayerCardFull({
   }
 
   return (
-    <div
-      className="relative flex h-[320px] w-[200px] flex-col rounded-xl border-2 p-3 transition-all duration-500"
-      style={{
-        borderColor: colors.border,
-        background: `linear-gradient(180deg, ${colors.bg} 0%, #0d0d1a 100%)`,
-        boxShadow: `0 0 20px ${colors.glow}, inset 0 0 20px ${colors.glow}`,
-        animation: 'fadeIn 0.4s ease-out',
-      }}
-    >
-      {/* Tier Banner */}
-      <div className="mb-1 text-center">
-        <span
-          className="text-[10px] font-bold uppercase tracking-[0.2em]"
-          style={{ color: colors.text }}
-        >
-          {TIER_STARS[tier]} {TIER_LABELS[tier]} {TIER_STARS[tier]}
-        </span>
-      </div>
-
-      {/* Portrait */}
-      <div
-        className="mx-auto mb-2 flex h-[100px] w-[100px] items-center justify-center overflow-hidden rounded-lg border"
-        style={{ borderColor: colors.border }}
-      >
-        <img
-          src={imgUrl}
-          alt={name}
-          className="h-full w-full object-cover"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-            (e.target as HTMLImageElement).parentElement!.innerHTML =
-              `<div class="flex h-full w-full items-center justify-center text-3xl" style="color:${colors.text}">&#9917;</div>`;
-          }}
-        />
-      </div>
-
-      {/* Name */}
-      <div className="mb-0.5 text-center">
-        <span className="block truncate font-mono text-xs font-bold text-white">
-          {name}
-        </span>
-      </div>
-
-      {/* OVR Badge */}
-      <div className="mb-1.5 text-center">
-        <span
-          className="inline-block rounded-full px-2 py-0.5 font-mono text-sm font-black"
-          style={{
-            color: '#0d0d1a',
-            backgroundColor: statColor(avg),
-          }}
-        >
-          OVR: {avg}
-        </span>
-      </div>
-
-      {/* Stat Bars */}
-      <div className="space-y-0.5">
-        {[
-          { label: 'SPD', value: player.stats.speed },
-          { label: 'PAS', value: player.stats.passing },
-          { label: 'SHO', value: player.stats.shooting },
-          { label: 'DEF', value: player.stats.defense },
-          { label: 'STA', value: player.stats.stamina },
-        ].map(({ label, value }) => (
-          <div key={label} className="flex items-center gap-1">
-            <span className="w-6 font-mono text-[8px] text-gray-500">{label}</span>
-            <div className="h-1.5 flex-1 rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${value}%`,
-                  backgroundColor: statColor(value),
-                }}
-              />
-            </div>
-            <span
-              className="w-5 text-right font-mono text-[8px]"
-              style={{ color: statColor(value) }}
-            >
-              {value}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* Token ID */}
-      <div className="mt-auto pt-1 text-center">
-        <span className="font-mono text-[8px] text-gray-600">
-          #{String(player.id).padStart(4, '0')}
-        </span>
-      </div>
+    <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+      <PixelCard
+        tokenId={player.id}
+        stats={player.stats}
+        tier={tier}
+        width={200}
+      />
     </div>
   );
 }
@@ -214,24 +127,41 @@ type SubTab = 'open' | 'collection';
 export function LootboxPanel({ onGoToSquad }: { onGoToSquad?: () => void }) {
   const { address } = useAccount();
   const { packPrice, totalPacks, openPack, isPending, isSuccess, refetch } = useLootbox(address);
-  const { players: myPlayers } = useMyPlayers(address);
+  const { players: myPlayers, refetchPlayers } = useMyPlayers(address);
   const [subtab, setSubtab] = useState<SubTab>('open');
   const [revealedPlayers, setRevealedPlayers] = useState<CloudFCPlayer[]>([]);
   const [showReveal, setShowReveal] = useState(false);
   const [preOpenCount, setPreOpenCount] = useState<number | null>(null);
 
-  // When transaction succeeds, capture the newly minted players for reveal
+  // When transaction succeeds, immediately refetch players with retry logic
   useEffect(() => {
-    if (isSuccess && preOpenCount !== null && myPlayers.length >= preOpenCount + 5) {
-      // Sort by id descending and take the 5 newest
+    if (!isSuccess || preOpenCount === null) return;
+
+    // If players already loaded (from a previous refetch), show reveal
+    if (myPlayers.length >= preOpenCount + 5) {
       const sorted = [...myPlayers].sort((a, b) => b.id - a.id);
       const newPlayers = sorted.slice(0, 5).reverse();
       setRevealedPlayers(newPlayers);
       setShowReveal(true);
       setPreOpenCount(null);
       refetch();
+      return;
     }
-  }, [isSuccess, myPlayers.length, preOpenCount, myPlayers, refetch]);
+
+    // Retry refetch up to 5 times with 2s intervals
+    let attempt = 0;
+    const maxRetries = 5;
+    const timer = setInterval(() => {
+      attempt++;
+      refetchPlayers();
+      if (attempt >= maxRetries) clearInterval(timer);
+    }, 2000);
+
+    // Immediately trigger first refetch
+    refetchPlayers();
+
+    return () => clearInterval(timer);
+  }, [isSuccess, myPlayers.length, preOpenCount, myPlayers, refetch, refetchPlayers]);
 
   const handleOpenPack = async () => {
     setShowReveal(false);

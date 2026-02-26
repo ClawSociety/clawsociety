@@ -95,6 +95,7 @@ export const CLOUDFC_ABI = [
   { type: 'function', name: 'TEAM_SIZE', inputs: [], outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'WINNER_BPS', inputs: [], outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'LOSER_BPS', inputs: [], outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'PROTOCOL_BPS', inputs: [], outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view' },
   // View: Matches
   {
     type: 'function', name: 'totalMatches',
@@ -166,12 +167,25 @@ export const CLOUDFC_ABI = [
     outputs: [{ name: 'squadId', type: 'uint256' }],
     stateMutability: 'nonpayable',
   },
+  // View: Match Type
+  {
+    type: 'function', name: 'getMatchType',
+    inputs: [{ name: 'matchId', type: 'uint256' }],
+    outputs: [{ name: '', type: 'uint8' }],
+    stateMutability: 'view',
+  },
   // Write: Match
   {
     type: 'function', name: 'createMatch',
     inputs: [{ name: 'squadId', type: 'uint256' }],
     outputs: [{ name: 'matchId', type: 'uint256' }],
     stateMutability: 'payable',
+  },
+  {
+    type: 'function', name: 'friendlyMatch',
+    inputs: [{ name: 'squadId', type: 'uint256' }],
+    outputs: [{ name: 'matchId', type: 'uint256' }],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function', name: 'acceptMatch',
@@ -210,6 +224,7 @@ export const CLOUDFC_ABI = [
       { name: 'matchId', type: 'uint256', indexed: true },
       { name: 'homeSquadId', type: 'uint256', indexed: true },
       { name: 'stake', type: 'uint128', indexed: false },
+      { name: 'matchType', type: 'uint8', indexed: false },
     ],
   },
   {
@@ -252,12 +267,13 @@ export const CLOUDFC_ABI = [
   { type: 'error', name: 'MatchNotPending', inputs: [] },
   { type: 'error', name: 'InsufficientStake', inputs: [] },
   { type: 'error', name: 'CantPlayYourself', inputs: [] },
-  { type: 'error', name: 'NotMatchParticipant', inputs: [] },
   { type: 'error', name: 'NotMatchCreator', inputs: [] },
   { type: 'error', name: 'NothingToClaim', inputs: [] },
   { type: 'error', name: 'TransferFailed', inputs: [] },
   { type: 'error', name: 'InvalidMatch', inputs: [] },
+  { type: 'error', name: 'InvalidAddress', inputs: [] },
   { type: 'error', name: 'SamePlayerBothTeams', inputs: [] },
+  { type: 'error', name: 'NotTournamentRole', inputs: [] },
 ] as const;
 
 // ─────────────────── CloudFCLootbox ABI ──────────────────────

@@ -10,12 +10,11 @@ import {CloudFCLootbox} from "../src/CloudFCLootbox.sol";
 ///         Sets up minter/locker roles for cross-contract authorization.
 ///
 /// Usage:
-///   PROTOCOL_FEE_RECEIVER=0x... TREASURY_RECEIVER=0x... \
+///   PROTOCOL_FEE_RECEIVER=0x... \
 ///   forge script script/DeployCloudFC.s.sol --rpc-url base --broadcast --verify
 contract DeployCloudFC is Script {
     function run() external {
         address protocolFeeReceiver = vm.envAddress("PROTOCOL_FEE_RECEIVER");
-        address treasuryReceiver = vm.envAddress("TREASURY_RECEIVER");
 
         vm.startBroadcast();
 
@@ -23,12 +22,12 @@ contract DeployCloudFC is Script {
         CloudFCPlayers players = new CloudFCPlayers();
         console2.log("CloudFCPlayers:", address(players));
 
-        // 2. Deploy Match Engine
-        CloudFC fc = new CloudFC(address(players), protocolFeeReceiver, treasuryReceiver);
+        // 2. Deploy Match Engine (V2: no treasury param)
+        CloudFC fc = new CloudFC(address(players), protocolFeeReceiver);
         console2.log("CloudFC:", address(fc));
 
         // 3. Deploy Lootbox
-        CloudFCLootbox lootbox = new CloudFCLootbox(address(players), treasuryReceiver, protocolFeeReceiver);
+        CloudFCLootbox lootbox = new CloudFCLootbox(address(players), protocolFeeReceiver, protocolFeeReceiver);
         console2.log("CloudFCLootbox:", address(lootbox));
 
         // 4. Authorize: CloudFC can lock/unlock players

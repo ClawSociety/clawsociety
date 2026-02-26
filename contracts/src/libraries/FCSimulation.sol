@@ -3,8 +3,9 @@ pragma solidity ^0.8.24;
 
 import {FCFormulas} from "./FCFormulas.sol";
 
-/// @title FCSimulation — Pure deterministic match simulation
-/// @notice Computes team power, Poisson goals, and match results from stats + VRF seed
+/// @title FCSimulation V2 — Pure deterministic match simulation
+/// @notice Computes team power, Poisson goals, and match results from stats + VRF seed.
+///         V2: diminishing returns on stats, noise on both attack & defense.
 library FCSimulation {
     uint256 internal constant BPS = 10_000;
 
@@ -34,7 +35,7 @@ library FCSimulation {
 
     function teamPower(TeamData memory team) internal pure returns (uint256 power) {
         for (uint256 i; i < 5; ++i) {
-            power += FCFormulas.effectiveRating(team.playerStats[i], team.positions[i]);
+            power += FCFormulas.effectiveRating(team.playerStats[i], team.positions[i], true);
         }
         uint256 synergy = FCFormulas.synergyBonusBps(team.maxSameOwner);
         power = power * (BPS + synergy) / BPS;
@@ -54,7 +55,7 @@ library FCSimulation {
         uint256 totalEff;
 
         for (uint256 i; i < 5; ++i) {
-            uint256 eff = FCFormulas.effectiveRating(team.playerStats[i], team.positions[i]);
+            uint256 eff = FCFormulas.effectiveRating(team.playerStats[i], team.positions[i], true);
             totalEff += eff;
             if (team.positions[i] == 3) fwdEff += eff;
             else if (team.positions[i] == 2) midEff += eff;
@@ -71,13 +72,13 @@ library FCSimulation {
         defense = defense * (BPS + synergy) / BPS;
     }
 
-    // ──────────────────────────── Apply Noise to Atk ──────────────────────
+    // ──────────────────────────── Apply Noise ─────────────────────────────
 
-    function _applyNoise(uint256 atk, int256 noise) private pure returns (uint256) {
+    function _applyNoise(uint256 val, int256 noise) private pure returns (uint256) {
         if (noise >= 0) {
-            return atk * (BPS + uint256(noise)) / BPS;
+            return val * (BPS + uint256(noise)) / BPS;
         } else {
-            return atk * (BPS - uint256(-noise)) / BPS;
+            return val * (BPS - uint256(-noise)) / BPS;
         }
     }
 
@@ -103,9 +104,11 @@ library FCSimulation {
             awayDef = awayDef * aDefMod / BPS;
         }
 
-        // VRF noise on attack
+        // V2: VRF noise on BOTH attack AND defense
         homeAtk = _applyNoise(homeAtk, FCFormulas.deriveNoise(vrfSeed, "teamA"));
         awayAtk = _applyNoise(awayAtk, FCFormulas.deriveNoise(vrfSeed, "teamB"));
+        homeDef = _applyNoise(homeDef, FCFormulas.deriveNoise(vrfSeed, "teamADef"));
+        awayDef = _applyNoise(awayDef, FCFormulas.deriveNoise(vrfSeed, "teamBDef"));
     }
 
     // ──────────────────────────── Simulate Match ──────────────────────────
@@ -157,30 +160,24 @@ library FCSimulation {
     }
 
     /// @notice Approximate e^(-x) for x in [0, 3.5] with 18 decimal precision
-    /// @dev Splits x into integer + fractional parts to avoid unsigned underflow.
-    ///      e^(-x) = e^(-floor(x)) × e^(-frac(x))
     function _expNeg(uint256 x18) private pure returns (uint256) {
         uint256 SCALE = 1e18;
-        // e^(-1) ≈ 0.367879441171442322
         uint256 EXP_NEG_1 = 367879441171442322;
 
-        // Split into integer and fractional parts
         uint256 intPart = x18 / SCALE;
         uint256 fracPart = x18 % SCALE;
 
-        // e^(-intPart) via repeated multiplication
         uint256 intResult = SCALE;
         for (uint256 i; i < intPart; ++i) {
             intResult = intResult * EXP_NEG_1 / SCALE;
         }
 
-        // e^(-fracPart) via Taylor series (fracPart < 1, no underflow)
         uint256 res = SCALE;
         uint256 term = SCALE;
         for (uint256 i = 1; i <= 12; ++i) {
             term = term * fracPart / (i * SCALE);
             if (i % 2 == 1) {
-                res -= term; // safe: fracPart < SCALE so partial sums stay positive
+                res -= term;
             } else {
                 res += term;
             }

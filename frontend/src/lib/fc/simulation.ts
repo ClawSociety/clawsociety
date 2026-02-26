@@ -109,9 +109,9 @@ export function generateTimeline(
 
   const rng = mulberry32(Number(opts.seed & 0xFFFFFFFFn));
 
-  // Possession bias from power or stats
-  const hp = opts.homePower ?? homeStats.reduce((s, p) => s + (p.speed + p.passing + p.shooting + p.defense + p.stamina) / 5, 0);
-  const ap = opts.awayPower ?? awayStats.reduce((s, p) => s + (p.speed + p.passing + p.shooting + p.defense + p.stamina) / 5, 0);
+  // Possession bias from power or stats (treat 0 as unknown → compute from stats)
+  const hp = opts.homePower || homeStats.reduce((s, p) => s + (p.speed + p.passing + p.shooting + p.defense + p.stamina) / 5, 0);
+  const ap = opts.awayPower || awayStats.reduce((s, p) => s + (p.speed + p.passing + p.shooting + p.defense + p.stamina) / 5, 0);
   const homeChance = hp / (hp + ap + 0.001);
 
   // ── Distribute goals across phases ──

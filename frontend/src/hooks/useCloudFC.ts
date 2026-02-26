@@ -35,7 +35,7 @@ export interface CloudFCRecord {
 // ─────────────────────── Player List ──────────────────────────
 
 export function useMyPlayers(address?: string) {
-  const { data: balanceRaw } = useReadContract({
+  const { data: balanceRaw, refetch: refetchBalance } = useReadContract({
     address: CLOUDFC_PLAYERS_ADDRESS,
     abi: PLAYERS_ABI,
     functionName: 'balanceOf',
@@ -45,9 +45,9 @@ export function useMyPlayers(address?: string) {
 
   const balance = Number(balanceRaw ?? 0);
 
-  // Fetch token IDs
+  // Fetch token IDs (paginate in batches of 50, no hard cap)
   const tokenIdContracts = useMemo(
-    () => Array.from({ length: Math.min(balance, 50) }, (_, i) => ({
+    () => Array.from({ length: balance }, (_, i) => ({
       address: CLOUDFC_PLAYERS_ADDRESS,
       abi: PLAYERS_ABI,
       functionName: 'tokenOfOwnerByIndex' as const,
@@ -121,7 +121,7 @@ export function useMyPlayers(address?: string) {
     }).filter((p): p is CloudFCPlayer => p !== null);
   }, [statsRaw, locksRaw, tokenIds, address]);
 
-  return { players, balance };
+  return { players, balance, refetchPlayers: refetchBalance };
 }
 
 // ─────────────────────── Match List ───────────────────────────

@@ -4,6 +4,8 @@ pragma solidity ^0.8.24;
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
 /// @title CloudFCPlayers — ERC721 Player NFTs with Packed Stats
 /// @notice Each player has 5 immutable stats (SPD/PAS/SHO/DEF/STA, 0-100).
@@ -46,6 +48,9 @@ contract CloudFCPlayers is ERC721Enumerable, Pausable {
     /// @notice Addresses authorized to mint players (Lootbox contract)
     mapping(address => bool) public minters;
 
+    /// @notice Base URI for external image rendering (e.g. "https://clawsociety.fun/api/card/")
+    string public imageBaseURI;
+
     // ──────────────────────────── Modifiers ───────────────────────────────
 
     modifier onlyAdmin() {
@@ -86,6 +91,10 @@ contract CloudFCPlayers is ERC721Enumerable, Pausable {
     function setMinter(address minter, bool authorized) external onlyAdmin {
         minters[minter] = authorized;
         emit MinterUpdated(minter, authorized);
+    }
+
+    function setImageBaseURI(string calldata _uri) external onlyAdmin {
+        imageBaseURI = _uri;
     }
 
     function pause() external onlyAdmin { _pause(); }
@@ -168,6 +177,52 @@ contract CloudFCPlayers is ERC721Enumerable, Pausable {
         if (!locked[playerId]) revert NotLocked();
         locked[playerId] = false;
         emit PlayerLockChanged(playerId, false);
+    }
+
+    // ──────────────────────────── Metadata ──────────────────────────────
+
+    /// @notice On-chain JSON metadata for marketplaces (OpenSea, etc.)
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        if (!_exists(tokenId)) revert PlayerDoesNotExist();
+        (uint8 spd, uint8 pas, uint8 sho, uint8 def, uint8 sta) = _unpack(packedStats[tokenId]);
+        uint256 avg = (uint256(spd) + pas + sho + def + sta) / 5;
+
+        string memory tier;
+        if (avg >= 80) tier = "Diamond";
+        else if (avg >= 65) tier = "Gold";
+        else if (avg >= 45) tier = "Silver";
+        else tier = "Bronze";
+
+        string memory idStr = Strings.toString(tokenId);
+
+        string memory image = bytes(imageBaseURI).length > 0
+            ? string.concat(imageBaseURI, idStr)
+            : "";
+
+        string memory json = string.concat(
+            '{"name":"CloudFC Player #', idStr,
+            '","description":"A ', tier, ' tier player in CloudFC 5v5 street football.',
+            '","image":"', image,
+            '","attributes":[',
+            _buildAttributes(spd, pas, sho, def, sta, avg, tier),
+            ']}'
+        );
+
+        return string.concat("data:application/json;base64,", Base64.encode(bytes(json)));
+    }
+
+    function _buildAttributes(
+        uint8 spd, uint8 pas, uint8 sho, uint8 def, uint8 sta, uint256 avg, string memory tier
+    ) private pure returns (string memory) {
+        return string.concat(
+            '{"trait_type":"Speed","value":', Strings.toString(spd), '},',
+            '{"trait_type":"Passing","value":', Strings.toString(pas), '},',
+            '{"trait_type":"Shooting","value":', Strings.toString(sho), '},',
+            '{"trait_type":"Defense","value":', Strings.toString(def), '},',
+            '{"trait_type":"Stamina","value":', Strings.toString(sta), '},',
+            '{"trait_type":"Rating","value":', Strings.toString(avg), '},',
+            '{"trait_type":"Tier","value":"', tier, '"}'
+        );
     }
 
     // ──────────────────────────── View ────────────────────────────────────

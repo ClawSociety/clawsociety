@@ -2,18 +2,18 @@
 
 import { useState, useMemo } from 'react';
 import { useAccount, usePublicClient } from 'wagmi';
-import type { Seat } from '@/lib/types';
 import { formatETH } from '@/lib/utils';
-import { FORMATION_NAMES, CLOUDFC_ABI, CLOUDFC_ADDRESS } from '@/lib/cloudfc-contract';
+import { FORMATION_NAMES, CLOUDFC_ABI } from '@/lib/cloudfc-contract';
 import {
   useMyPlayers, useCloudFCMatches, useCloudFCRecord,
   useClaimable, useCloudFCActions,
 } from '@/hooks/useCloudFC';
 import type { CloudFCMatch, CloudFCPlayer, Formation } from '@/lib/fc/types';
 import { playerRating } from '@/lib/fc/formulas';
+import { PlayerAvatar } from './PlayerAvatar';
 import { PitchCanvas } from './PitchCanvas';
 import { LootboxPanel } from './LootboxPanel';
-import { CardGallery } from './CardGallery';
+import { PlayerCreator } from './PlayerCreator';
 
 // ─────────────────── Stat Colors ─────────────────────────────
 
@@ -51,6 +51,7 @@ function PlayerCard({
             : 'border-white/10 bg-white/5 hover:bg-white/10'
       }`}
     >
+      <PlayerAvatar tokenId={player.id} stats={player.stats} size={28} />
       <div className="flex flex-col items-center">
         <span className="text-lg font-bold" style={{ color: statColor(rating) }}>
           {rating}
@@ -148,14 +149,9 @@ function MatchRow({
 
 // ─────────────────── Main Panel ──────────────────────────────
 
-type Tab = 'squad' | 'matches' | 'packs' | 'standings' | 'gallery';
+type Tab = 'squad' | 'matches' | 'packs' | 'standings' | 'creator';
 
-interface FCPanelProps {
-  seats: Seat[];
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function FCPanel({ seats }: FCPanelProps) {
+export function FCPanel() {
   const { address } = useAccount();
   const [tab, setTab] = useState<Tab>('squad');
   const [selectedPlayers, setSelectedPlayers] = useState<number[]>([]);
@@ -195,15 +191,12 @@ export function FCPanel({ seats }: FCPanelProps) {
 
   const waitForSquadId = async (txHash: `0x${string}`): Promise<bigint> => {
     if (!publicClient) throw new Error('No public client');
-    // Wait for the createSquad tx to be confirmed
-    await publicClient.waitForTransactionReceipt({ hash: txHash, confirmations: 2 });
-    // Read totalSquads from the contract — the new squad ID is totalSquads - 1
-    const total = await publicClient.readContract({
-      address: CLOUDFC_ADDRESS,
-      abi: CLOUDFC_ABI,
-      functionName: 'totalSquads',
-    }) as bigint;
-    return total - 1n;
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, confirmations: 2 });
+    // Extract squadId from SquadCreated event in tx receipt
+    const { parseEventLogs } = await import('viem');
+    const logs = parseEventLogs({ abi: CLOUDFC_ABI, logs: receipt.logs, eventName: 'SquadCreated' });
+    if (logs.length === 0) throw new Error('SquadCreated event not found in tx receipt');
+    return (logs[0].args as { squadId: bigint }).squadId;
   };
 
   const friendlyError = (e: unknown): string => {
@@ -226,16 +219,6 @@ export function FCPanel({ seats }: FCPanelProps) {
       const squadHash = await createSquad(selectedPlayers.map(id => BigInt(id)), formation);
       const squadId = await waitForSquadId(squadHash);
       setMatchStep('match');
-      // Verify the squad is ours before proceeding
-      const squad = await publicClient!.readContract({
-        address: CLOUDFC_ADDRESS,
-        abi: CLOUDFC_ABI,
-        functionName: 'getSquad',
-        args: [squadId],
-      }) as unknown as [bigint[], string[], number, string];
-      if (squad[3].toLowerCase() !== address?.toLowerCase()) {
-        throw new Error('Squad created but creator mismatch — possible race condition. Try again.');
-      }
       await createMatch(squadId, stakeInput);
       setSelectedPlayers([]);
       setStakeInput('');
@@ -361,8 +344,6 @@ export function FCPanel({ seats }: FCPanelProps) {
             homeGoals={viewingMatch.homeGoals}
             awayGoals={viewingMatch.awayGoals}
             seed={viewingMatch.seed}
-            homePower={0}
-            awayPower={0}
             width={540}
             height={340}
           />
@@ -371,7 +352,7 @@ export function FCPanel({ seats }: FCPanelProps) {
 
       {/* Tabs */}
       <div className="flex gap-1">
-        {(['squad', 'matches', 'packs', 'standings', 'gallery'] as Tab[]).map(t => (
+        {(['squad', 'matches', 'packs', 'standings', 'creator'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -629,8 +610,8 @@ export function FCPanel({ seats }: FCPanelProps) {
       {/* ─── Packs (Lootbox) ─── */}
       {tab === 'packs' && <LootboxPanel onGoToSquad={() => setTab('squad')} />}
 
-      {/* ─── Gallery ─── */}
-      {tab === 'gallery' && <CardGallery />}
+      {/* ─── Creator ─── */}
+      {tab === 'creator' && <PlayerCreator onGoToPacks={() => setTab('packs')} />}
 
       {/* ─── Standings ─── */}
       {tab === 'standings' && (

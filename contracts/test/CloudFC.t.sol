@@ -185,8 +185,8 @@ contract FCFormulasTest is Test {
 
     function test_formation_rps_balancedBeatsDefensive() public view {
         (uint256 atk, uint256 def) = h.formationModifiers(0, 2);
-        assertEq(atk, 10_000 + 300);
-        assertEq(def, 10_000 + 300);
+        assertEq(atk, 10_000 + 250);
+        assertEq(def, 10_000 + 250);
     }
 
     // ─── fatigueMultiplier ───────────────────────────────────────────────
@@ -739,7 +739,7 @@ contract CloudFCTest is Test {
 
         // Deploy CloudFC
         vm.prank(deployer);
-        fc = new CloudFC(address(nft), protocol, treasury);
+        fc = new CloudFC(address(nft), protocol);
 
         // Authorize FC as locker
         vm.prank(deployer);
@@ -798,7 +798,6 @@ contract CloudFCTest is Test {
     function test_deployment_state() public view {
         assertEq(fc.owner(), deployer);
         assertEq(fc.protocolFeeReceiver(), protocol);
-        assertEq(fc.treasuryReceiver(), treasury);
         assertEq(address(fc.players()), address(nft));
         assertEq(fc.totalMatches(), 0);
         assertEq(fc.totalSquads(), 0);
@@ -934,7 +933,7 @@ contract CloudFCTest is Test {
 
         vm.prank(alice);
         vm.expectEmit(true, true, false, true);
-        emit CloudFC.MatchCreated(0, sqId, uint128(STAKE));
+        emit CloudFC.MatchCreated(0, sqId, uint128(STAKE), CloudFC.MatchType.Ranked);
         fc.createMatch{value: STAKE}(sqId);
     }
 
@@ -1010,20 +1009,18 @@ contract CloudFCTest is Test {
         vm.prank(bob);
         fc.acceptMatch{value: STAKE}(matchId, awaySq);
 
-        // Protocol and treasury should get their cuts
+        // Protocol should get its cut (5%), no treasury cut in V2
         uint256 totalPool = STAKE * 2;
-        uint256 protocolCut = totalPool * 1000 / 10_000; // 10%
-        uint256 treasuryCut = totalPool * 500 / 10_000;  // 5%
+        uint256 protocolCut = totalPool * 500 / 10_000; // 5%
 
         assertEq(fc.claimable(protocol), protocolCut);
-        assertEq(fc.claimable(treasury), treasuryCut);
 
-        // Alice and Bob combined should get the rest
+        // Alice and Bob combined should get the rest (65/30 split of remaining)
         uint256 aliceClaim = fc.claimable(alice);
         uint256 bobClaim = fc.claimable(bob);
         uint256 playerTotal = aliceClaim + bobClaim;
 
-        assertEq(playerTotal, totalPool - protocolCut - treasuryCut, "Player rewards should equal remaining pool");
+        assertEq(playerTotal, totalPool - protocolCut, "Player rewards should equal remaining pool");
     }
 
     function test_acceptMatch_refundsExcess() public {
@@ -1282,7 +1279,7 @@ contract CloudFCTest is Test {
         vm.prank(bob);
         fc.acceptMatch{value: STAKE}(0, awaySq);
 
-        uint256 expected = STAKE * 2 * 1000 / 10_000; // 10%
+        uint256 expected = STAKE * 2 * 500 / 10_000; // 5%
         uint256 balBefore = protocol.balance;
 
         vm.prank(protocol);
@@ -1291,23 +1288,14 @@ contract CloudFCTest is Test {
         assertEq(protocol.balance - balBefore, expected);
     }
 
-    function test_claimRewards_treasury() public {
-        uint256 homeSq = _createAliceSquad(0);
-        uint256 awaySq = _createBobSquad(0);
+    function test_admin_setTournamentRole() public {
+        vm.prank(deployer);
+        fc.setTournamentRole(charlie, true);
+        assertTrue(fc.tournamentRole(charlie));
 
-        vm.prank(alice);
-        fc.createMatch{value: STAKE}(homeSq);
-
-        vm.prank(bob);
-        fc.acceptMatch{value: STAKE}(0, awaySq);
-
-        uint256 expected = STAKE * 2 * 500 / 10_000; // 5%
-        uint256 balBefore = treasury.balance;
-
-        vm.prank(treasury);
-        fc.claimRewards();
-
-        assertEq(treasury.balance - balBefore, expected);
+        vm.prank(deployer);
+        fc.setTournamentRole(charlie, false);
+        assertFalse(fc.tournamentRole(charlie));
     }
 
     function test_claimRewards_revert_nothingToClaim() public {
@@ -1356,8 +1344,7 @@ contract CloudFCTest is Test {
         // Total claimable should equal contract balance
         uint256 totalClaimable = fc.claimable(alice)
             + fc.claimable(bob)
-            + fc.claimable(protocol)
-            + fc.claimable(treasury);
+            + fc.claimable(protocol);
 
         assertEq(address(fc).balance, totalClaimable, "ETH in contract should match total claimable");
     }
@@ -1382,8 +1369,6 @@ contract CloudFCTest is Test {
             fc.claimRewards();
         }
         vm.prank(protocol);
-        fc.claimRewards();
-        vm.prank(treasury);
         fc.claimRewards();
 
         assertEq(address(fc).balance, 0, "Contract should be empty after all claims");
@@ -1447,10 +1432,10 @@ contract CloudFCTest is Test {
         assertEq(fc.protocolFeeReceiver(), charlie);
     }
 
-    function test_admin_setTreasuryReceiver() public {
-        vm.prank(deployer);
-        fc.setTreasuryReceiver(charlie);
-        assertEq(fc.treasuryReceiver(), charlie);
+    function test_admin_setTournamentRole_onlyOwner() public {
+        vm.prank(alice);
+        vm.expectRevert(CloudFC.OnlyOwner.selector);
+        fc.setTournamentRole(charlie, true);
     }
 
     function test_admin_transferOwnership() public {

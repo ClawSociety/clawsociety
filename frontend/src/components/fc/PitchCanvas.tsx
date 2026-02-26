@@ -1,9 +1,10 @@
 'use client';
 
-import { useRef, useEffect, useMemo, useState } from 'react';
+import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { generateTimeline } from '@/lib/fc/simulation';
-import { MatchRenderer } from '@/lib/fc/matchRenderer';
-import { loadSprites, type SpriteAtlas } from '@/lib/fc/spriteLoader';
+
+// PixiMatchRenderer is dynamically imported inside useEffect to avoid
+// PixiJS accessing `navigator` during SSR (Next.js server rendering).
 
 // ─────────────────── Props (UNCHANGED) ──────────────────────
 
@@ -11,8 +12,8 @@ interface PitchCanvasProps {
   homeGoals: number;
   awayGoals: number;
   seed: bigint;
-  homePower: number;
-  awayPower: number;
+  homePower?: number;
+  awayPower?: number;
   width?: number;
   height?: number;
 }
@@ -29,70 +30,127 @@ export function PitchCanvas({
   height = 340,
 }: PitchCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef<number>(0);
-  const [sprites, setSprites] = useState<SpriteAtlas | null>(null);
-
-  // Load sprites once
-  useEffect(() => {
-    loadSprites().then(setSprites);
-  }, []);
+  const rendererRef = useRef<{ destroy: () => void; togglePause: () => void; isPaused: () => boolean; setSpeed: (s: number) => void; seek: (p: number) => void } | null>(null);
+  const [isFinished, setIsFinished] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [loading, setLoading] = useState(true);
 
   // Deterministic timeline — only recomputes when match data changes
   const timeline = useMemo(
-    () => generateTimeline(homeGoals, awayGoals, seed, homePower, awayPower),
+    () => generateTimeline({
+      homeGoals, awayGoals, seed,
+      homePower: homePower || undefined,
+      awayPower: awayPower || undefined,
+    }),
     [homeGoals, awayGoals, seed, homePower, awayPower],
   );
 
-  // Renderer instance — depends on sprites being loaded
-  const renderer = useMemo(
-    () => sprites ? new MatchRenderer(timeline, undefined, homePower, awayPower, sprites) : null,
-    [timeline, homePower, awayPower, sprites],
-  );
-
+  // Initialize PixiJS renderer (dynamic import to avoid SSR crash)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
 
-    // Show loading state if sprites not ready
-    if (!renderer) {
-      ctx.fillStyle = '#0a1a0a';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.font = 'bold 14px "JetBrains Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
-      ctx.fillText('LOADING...', canvas.width / 2, canvas.height / 2);
-      return;
-    }
+    let destroyed = false;
 
-    let start = 0;
+    (async () => {
+      // Dynamic import — only loads PixiJS in the browser
+      const { PixiMatchRenderer } = await import('@/lib/fc/PixiMatchRenderer');
 
-    const animate = (timestamp: number) => {
-      if (!start) start = timestamp;
-      const elapsed = timestamp - start;
+      if (destroyed) return;
 
-      const running = renderer.renderFrame(ctx, canvas.width, canvas.height, elapsed);
+      const renderer = new PixiMatchRenderer(timeline, undefined, homePower ?? 0, awayPower ?? 0);
+      rendererRef.current = renderer;
 
-      if (running) {
-        animRef.current = requestAnimationFrame(animate);
-      }
-    };
-
-    animRef.current = requestAnimationFrame(animate);
+      await renderer.init(canvas, width, height, () => setIsFinished(true));
+      if (!destroyed) setLoading(false);
+    })();
 
     return () => {
-      if (animRef.current) cancelAnimationFrame(animRef.current);
+      destroyed = true;
+      rendererRef.current?.destroy();
+      rendererRef.current = null;
     };
-  }, [renderer, width, height]);
+  }, [timeline, homePower, awayPower, width, height]);
+
+  // Play/Pause
+  const handleTogglePause = useCallback(() => {
+    const r = rendererRef.current;
+    if (!r) return;
+    r.togglePause();
+    setIsPaused(r.isPaused());
+  }, []);
+
+  // Speed control
+  const handleSpeed = useCallback((s: number) => {
+    const r = rendererRef.current;
+    if (!r) return;
+    r.setSpeed(s);
+    setSpeed(s);
+  }, []);
+
+  // Replay
+  const handleReplay = useCallback(() => {
+    const r = rendererRef.current;
+    if (!r) return;
+    r.seek(0);
+    setIsFinished(false);
+    if (r.isPaused()) {
+      r.togglePause();
+      setIsPaused(false);
+    }
+  }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={width}
-      height={height}
-      className="w-full rounded-lg border border-white/10"
-      style={{ imageRendering: 'pixelated' }}
-    />
+    <div className="relative">
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#0a1a0a] rounded-lg border border-white/10">
+          <span className="text-white/40 text-sm font-mono">Loading match...</span>
+        </div>
+      )}
+      <canvas
+        ref={canvasRef}
+        width={width}
+        height={height}
+        className="w-full rounded-lg border border-white/10"
+      />
+
+      {/* Replay Controls */}
+      <div className="flex items-center justify-center gap-2 mt-2">
+        {/* Play/Pause */}
+        <button
+          onClick={handleTogglePause}
+          className="px-2 py-1 text-xs font-mono bg-white/5 hover:bg-white/10 border border-white/10 rounded transition-colors"
+          title={isPaused ? 'Play' : 'Pause'}
+        >
+          {isPaused ? '\u25B6' : '\u275A\u275A'}
+        </button>
+
+        {/* Speed buttons */}
+        {[0.5, 1, 2].map((s) => (
+          <button
+            key={s}
+            onClick={() => handleSpeed(s)}
+            className={`px-2 py-1 text-xs font-mono border rounded transition-colors ${
+              speed === s
+                ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400'
+                : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/60'
+            }`}
+          >
+            {s}x
+          </button>
+        ))}
+
+        {/* Replay */}
+        {isFinished && (
+          <button
+            onClick={handleReplay}
+            className="px-2 py-1 text-xs font-mono bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded transition-colors"
+          >
+            Replay
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

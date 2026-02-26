@@ -7,26 +7,22 @@ import {CloudFCPlayers} from "./CloudFCPlayers.sol";
 import {FCSimulation} from "./libraries/FCSimulation.sol";
 import {FCFormulas} from "./libraries/FCFormulas.sol";
 
-/// @title CloudFC — Player-Centric 5v5 Street Football
-/// @notice Squads of ERC721 players compete in deterministic matches.
-///         VRF noise + Poisson goals + stat-weighted outcomes.
-///         Pull-claim reward pattern with performance multipliers.
+/// @title CloudFC V2 — Player-Centric 5v5 Street Football
+/// @notice V2 changes: 65/30/5/0 reward split, match types (Ranked/Friendly/Tournament),
+///         friendlyMatch() with no stakes, removed dead PERF_ constants.
 contract CloudFC is ReentrancyGuard, Pausable {
     // ──────────────────────────── Constants ────────────────────────────────
 
     uint256 public constant TEAM_SIZE = 5;
-    uint256 public constant WINNER_BPS = 6000;   // 60% to winner
-    uint256 public constant LOSER_BPS = 2500;    // 25% to loser
-    uint256 public constant PROTOCOL_BPS = 1000; // 10% protocol
-    uint256 public constant TREASURY_BPS = 500;  // 5% treasury
-    // Draw: remaining pool split 50/50 (after protocol + treasury fees)
+    uint256 public constant WINNER_BPS = 6500;   // 65% to winner
+    uint256 public constant LOSER_BPS = 3000;    // 30% to loser
+    uint256 public constant PROTOCOL_BPS = 500;  // 5% protocol
+    // No treasury cut — treasury grows from lootbox fees
+    // Break-even win rate: ~57.14% (down from 71.43%)
 
-    // Performance multipliers (×100 for precision)
-    uint256 public constant PERF_BASE = 100;
-    uint256 public constant PERF_GOAL = 250;
-    uint256 public constant PERF_ASSIST = 180;
-    uint256 public constant PERF_SAVE = 200;
-    uint256 public constant PERF_TACKLE = 140;
+    // ──────────────────────────── Enums ──────────────────────────────────
+
+    enum MatchType { Ranked, Friendly, Tournament }
 
     // ──────────────────────────── Errors ──────────────────────────────────
 
@@ -37,23 +33,20 @@ contract CloudFC is ReentrancyGuard, Pausable {
     error DuplicatePlayer();
     error InvalidFormation();
     error MatchNotPending();
-    error MatchNotVRFRequested();
     error InsufficientStake();
     error CantPlayYourself();
-    error NotMatchParticipant();
     error NotMatchCreator();
     error NothingToClaim();
     error TransferFailed();
     error InvalidMatch();
     error InvalidAddress();
-    error SquadNotReady();
     error SamePlayerBothTeams();
+    error NotTournamentRole();
 
     // ──────────────────────────── Events ──────────────────────────────────
 
     event SquadCreated(uint256 indexed squadId, address indexed creator, uint256[5] playerIds, uint8 formation);
-    event MatchCreated(uint256 indexed matchId, uint256 indexed homeSquadId, uint128 stake);
-    event MatchAccepted(uint256 indexed matchId, uint256 indexed awaySquadId);
+    event MatchCreated(uint256 indexed matchId, uint256 indexed homeSquadId, uint128 stake, MatchType matchType);
     event MatchResolved(
         uint256 indexed matchId,
         uint8 homeGoals,
@@ -63,10 +56,8 @@ contract CloudFC is ReentrancyGuard, Pausable {
         uint256 seed
     );
     event MatchCancelled(uint256 indexed matchId);
-    event RewardClaimed(uint256 indexed matchId, address indexed claimer, uint256 amount);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event ProtocolFeeReceiverUpdated(address indexed oldReceiver, address indexed newReceiver);
-    event TreasuryReceiverUpdated(address indexed oldReceiver, address indexed newReceiver);
 
     // ──────────────────────────── Structs ─────────────────────────────────
 
@@ -85,7 +76,8 @@ contract CloudFC is ReentrancyGuard, Pausable {
         uint8 homeGoals;
         uint8 awayGoals;
         uint8 status;            // 0=pending, 1=resolved, 2=cancelled
-        uint256 seed;            // block.prevrandao (or VRF seed)
+        MatchType matchType;
+        uint256 seed;            // block.prevrandao
         uint256 totalPool;       // homeStake + awayStake
     }
 
@@ -103,20 +95,14 @@ contract CloudFC is ReentrancyGuard, Pausable {
     CloudFCPlayers public immutable players;
     address public owner;
     address public protocolFeeReceiver;
-    address public treasuryReceiver;
 
     Squad[] public squads;
     Match[] public matches;
 
     mapping(address => Record) public records;
-
-    /// @notice Pull-claim balances per address
     mapping(address => uint256) public claimable;
-
-    /// @notice Track which players are in an active (pending) match
     mapping(uint256 => uint256) public playerActiveMatch; // playerId => matchId+1 (0 = not active)
-
-    // (hasClaimed and matchRewards mappings removed — pull-claim uses claimable[] only)
+    mapping(address => bool) public tournamentRole;       // authorized tournament contracts
 
     // ──────────────────────────── Modifiers ───────────────────────────────
 
@@ -127,11 +113,10 @@ contract CloudFC is ReentrancyGuard, Pausable {
 
     // ──────────────────────────── Constructor ─────────────────────────────
 
-    constructor(address _players, address _protocolFeeReceiver, address _treasuryReceiver) {
+    constructor(address _players, address _protocolFeeReceiver) {
         players = CloudFCPlayers(_players);
         owner = msg.sender;
         protocolFeeReceiver = _protocolFeeReceiver;
-        treasuryReceiver = _treasuryReceiver;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -151,12 +136,10 @@ contract CloudFC is ReentrancyGuard, Pausable {
             address pOwner = players.ownerOf(playerIds[i]);
             if (pOwner != msg.sender) revert NotPlayerOwner();
 
-            // Check duplicates
             for (uint256 j; j < i; ++j) {
                 if (playerIds[i] == playerIds[j]) revert DuplicatePlayer();
             }
 
-            // Check not in active match
             if (playerActiveMatch[playerIds[i]] != 0) revert PlayerInActiveMatch();
 
             owners[i] = pOwner;
@@ -177,7 +160,7 @@ contract CloudFC is ReentrancyGuard, Pausable {
     //                          MATCH LIFECYCLE
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// @notice Create a match with your squad. Attach ETH as stake.
+    /// @notice Create a ranked match with ETH stake
     function createMatch(uint256 squadId)
         external
         payable
@@ -185,11 +168,27 @@ contract CloudFC is ReentrancyGuard, Pausable {
         whenNotPaused
         returns (uint256 matchId)
     {
+        matchId = _createMatchInternal(squadId, MatchType.Ranked);
+    }
+
+    /// @notice Create a friendly match (no stake, no rewards, still recorded)
+    function friendlyMatch(uint256 squadId)
+        external
+        nonReentrant
+        whenNotPaused
+        returns (uint256 matchId)
+    {
+        matchId = _createMatchInternal(squadId, MatchType.Friendly);
+    }
+
+    function _createMatchInternal(uint256 squadId, MatchType mType)
+        internal
+        returns (uint256 matchId)
+    {
         if (squadId >= squads.length) revert InvalidSquad();
         Squad storage squad = squads[squadId];
         if (squad.creator != msg.sender) revert NotPlayerOwner();
 
-        // Verify ownership hasn't changed and lock players
         for (uint256 i; i < TEAM_SIZE; ++i) {
             if (players.ownerOf(squad.playerIds[i]) != msg.sender) revert NotPlayerOwner();
             if (playerActiveMatch[squad.playerIds[i]] != 0) revert PlayerInActiveMatch();
@@ -201,19 +200,17 @@ contract CloudFC is ReentrancyGuard, Pausable {
         m.homeSquadId = squadId;
         m.stake = uint128(msg.value);
         m.createdAt = uint64(block.timestamp);
-        // status = 0 (pending)
+        m.matchType = mType;
 
-        // Lock home players
         for (uint256 i; i < TEAM_SIZE; ++i) {
             playerActiveMatch[squad.playerIds[i]] = matchId + 1;
             players.lockPlayer(squad.playerIds[i]);
         }
 
-        emit MatchCreated(matchId, squadId, uint128(msg.value));
+        emit MatchCreated(matchId, squadId, uint128(msg.value), mType);
     }
 
-    /// @notice Accept a match with your squad. Must send at least the match stake.
-    ///         Match resolves instantly using block.prevrandao as seed.
+    /// @notice Accept a match with your squad
     function acceptMatch(uint256 matchId, uint256 squadId)
         external
         payable
@@ -233,7 +230,6 @@ contract CloudFC is ReentrancyGuard, Pausable {
         Squad storage homeSquad = squads[m.homeSquadId];
         if (homeSquad.creator == msg.sender) revert CantPlayYourself();
 
-        // Verify away squad ownership and no overlap with home squad
         for (uint256 i; i < TEAM_SIZE; ++i) {
             if (players.ownerOf(awaySquad.playerIds[i]) != msg.sender) revert NotPlayerOwner();
             if (playerActiveMatch[awaySquad.playerIds[i]] != 0) revert PlayerInActiveMatch();
@@ -246,32 +242,29 @@ contract CloudFC is ReentrancyGuard, Pausable {
         m.seed = block.prevrandao;
         m.status = 1; // resolved
 
-        // Lock away players temporarily (will unlock after resolution)
         for (uint256 i; i < TEAM_SIZE; ++i) {
             playerActiveMatch[awaySquad.playerIds[i]] = matchId + 1;
             players.lockPlayer(awaySquad.playerIds[i]);
         }
 
-        // Build team data for simulation
         FCSimulation.TeamData memory homeData = _buildTeamData(homeSquad);
         FCSimulation.TeamData memory awayData = _buildTeamData(awaySquad);
-
-        // Simulate
         FCSimulation.MatchResult memory result = FCSimulation.simulate(homeData, awayData, m.seed);
+
         m.homeGoals = result.homeGoals;
         m.awayGoals = result.awayGoals;
         m.totalPool = m.stake * 2;
 
-        // Update records
         _updateRecords(homeSquad.creator, awaySquad.creator, result.homeGoals, result.awayGoals);
 
-        _settleRewards(homeSquad, awaySquad, result, m.stake);
+        // Only settle rewards for ranked matches with stakes
+        if (m.matchType == MatchType.Ranked) {
+            _settleRewards(homeSquad, awaySquad, result, m.stake);
+        }
 
-        // Unlock all players
         _unlockSquad(homeSquad, matchId);
         _unlockSquad(awaySquad, matchId);
 
-        // Refund excess
         if (msg.value > m.stake) {
             _send(msg.sender, msg.value - m.stake);
         }
@@ -288,12 +281,9 @@ contract CloudFC is ReentrancyGuard, Pausable {
         Squad storage homeSquad = squads[m.homeSquadId];
         if (homeSquad.creator != msg.sender) revert NotMatchCreator();
 
-        m.status = 2; // cancelled
-
-        // Unlock home players
+        m.status = 2;
         _unlockSquad(homeSquad, matchId);
 
-        // Refund stake
         if (m.stake > 0) _send(msg.sender, m.stake);
 
         emit MatchCancelled(matchId);
@@ -318,23 +308,16 @@ contract CloudFC is ReentrancyGuard, Pausable {
     {
         data.formation = squad.formation;
 
-        // Default positions: [GK, DEF, DEF/MID, MID, FWD] for balanced
-        // [GK, DEF, FWD, FWD, FWD] for offensive
-        // [GK, DEF, DEF, DEF, FWD] for defensive
         uint8[5] memory positions;
         if (squad.formation == 0) {
-            // 1-2-2: GK, DEF, DEF, MID, FWD
             positions = [uint8(0), 1, 1, 2, 3];
         } else if (squad.formation == 1) {
-            // 1-1-3: GK, DEF, MID, FWD, FWD
             positions = [uint8(0), 1, 2, 3, 3];
         } else {
-            // 1-3-1: GK, DEF, DEF, DEF, FWD
             positions = [uint8(0), 1, 1, 1, 3];
         }
         data.positions = positions;
 
-        // Count max same owner for synergy
         uint256 maxSame;
         for (uint256 i; i < TEAM_SIZE; ++i) {
             data.playerStats[i] = players.getStatsArray(squad.playerIds[i]);
@@ -358,26 +341,21 @@ contract CloudFC is ReentrancyGuard, Pausable {
 
         uint256 totalPool = stake * 2;
         uint256 protocolFee = totalPool * PROTOCOL_BPS / 10_000;
-        uint256 treasuryFee = totalPool * TREASURY_BPS / 10_000;
 
         claimable[protocolFeeReceiver] += protocolFee;
-        claimable[treasuryReceiver] += treasuryFee;
 
-        uint256 remaining = totalPool - protocolFee - treasuryFee;
+        uint256 remaining = totalPool - protocolFee;
 
         uint256 homePool;
         uint256 awayPool;
 
         if (result.homeGoals > result.awayGoals) {
-            // Home wins
             homePool = remaining * WINNER_BPS / (WINNER_BPS + LOSER_BPS);
             awayPool = remaining - homePool;
         } else if (result.awayGoals > result.homeGoals) {
-            // Away wins
             awayPool = remaining * WINNER_BPS / (WINNER_BPS + LOSER_BPS);
             homePool = remaining - awayPool;
         } else {
-            // Draw
             homePool = remaining / 2;
             awayPool = remaining - homePool;
         }
@@ -392,7 +370,6 @@ contract CloudFC is ReentrancyGuard, Pausable {
     ) internal {
         if (pool == 0) return;
 
-        // Sum effective ratings for each player
         uint256 totalWeight;
         uint256[5] memory weights;
 
@@ -412,12 +389,10 @@ contract CloudFC is ReentrancyGuard, Pausable {
         }
 
         if (totalWeight == 0) {
-            // Fallback: split evenly among owners
             uint256 perPlayer = pool / TEAM_SIZE;
             for (uint256 i; i < TEAM_SIZE; ++i) {
                 claimable[squad.owners[i]] += perPlayer;
             }
-            // Dust to first owner
             claimable[squad.owners[0]] += pool - perPlayer * TEAM_SIZE;
             return;
         }
@@ -426,7 +401,7 @@ contract CloudFC is ReentrancyGuard, Pausable {
         for (uint256 i; i < TEAM_SIZE; ++i) {
             uint256 share;
             if (i == TEAM_SIZE - 1) {
-                share = pool - distributed; // last player gets remainder (no dust)
+                share = pool - distributed;
             } else {
                 share = pool * weights[i] / totalWeight;
             }
@@ -507,6 +482,10 @@ contract CloudFC is ReentrancyGuard, Pausable {
         );
     }
 
+    function getMatchType(uint256 matchId) external view returns (MatchType) {
+        return matches[matchId].matchType;
+    }
+
     function getSquad(uint256 squadId)
         external
         view
@@ -530,7 +509,6 @@ contract CloudFC is ReentrancyGuard, Pausable {
         return (r.wins, r.losses, r.draws, r.goalsFor, r.goalsAgainst, r.matchesPlayed);
     }
 
-    /// @notice Get team power for a squad (useful for UI display)
     function getSquadPower(uint256 squadId) external view returns (uint256) {
         Squad storage s = squads[squadId];
         FCSimulation.TeamData memory data = _buildTeamData(s);
@@ -548,11 +526,8 @@ contract CloudFC is ReentrancyGuard, Pausable {
         emit ProtocolFeeReceiverUpdated(old, _receiver);
     }
 
-    function setTreasuryReceiver(address _receiver) external onlyOwner {
-        if (_receiver == address(0)) revert InvalidAddress();
-        address old = treasuryReceiver;
-        treasuryReceiver = _receiver;
-        emit TreasuryReceiverUpdated(old, _receiver);
+    function setTournamentRole(address _addr, bool _authorized) external onlyOwner {
+        tournamentRole[_addr] = _authorized;
     }
 
     function transferOwnership(address newOwner) external onlyOwner {
