@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAccount } from 'wagmi';
-import { formatETH } from '@/lib/utils';
 import { useLootbox } from '@/hooks/useCloudFCLootbox';
 import { useMyPlayers } from '@/hooks/useCloudFC';
 import type { CloudFCPlayer, PlayerStats } from '@/lib/fc/types';
@@ -11,6 +10,7 @@ import {
   TIER_COLORS, TIER_LABELS,
 } from '@/lib/fc/playerNames';
 import { PixelCard } from './PixelCard';
+import { PackVisual } from './PackVisual';
 
 // ─────────────────── Helpers ─────────────────────────────────
 
@@ -231,20 +231,15 @@ export function LootboxPanel({ onGoToSquad }: { onGoToSquad?: () => void }) {
             </p>
           ) : (
             <>
-              {/* Buy Button */}
+              {/* Pack Visual + Buy */}
               {!showReveal && (
                 <div className="mb-4 text-center">
                   <button
                     onClick={handleOpenPack}
                     disabled={isPending}
-                    className="group relative rounded-xl border-2 border-cyan-400 bg-gradient-to-b from-cyan-500/20 to-transparent px-8 py-4 transition-all hover:from-cyan-500/30 hover:shadow-[0_0_30px_rgba(0,255,255,0.3)] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="mx-auto block disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    <span className="block text-lg font-black uppercase text-cyan-400">
-                      {isPending ? 'Opening...' : 'Open Pack'}
-                    </span>
-                    <span className="block text-xs text-gray-400">
-                      {formatETH(packPrice)} for 5 players
-                    </span>
+                    <PackVisual isPending={isPending} packPrice={packPrice} />
                   </button>
 
                   <div className="mt-3 flex justify-center gap-4 text-[10px] text-gray-600">

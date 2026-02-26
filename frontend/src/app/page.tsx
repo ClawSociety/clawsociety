@@ -70,6 +70,8 @@ function GameShowcase({
   accent,
   reverse,
   comingSoon,
+  alpha,
+  logoSrc,
   stats,
 }: {
   title: string;
@@ -80,6 +82,8 @@ function GameShowcase({
   accent: string;
   reverse?: boolean;
   comingSoon?: boolean;
+  alpha?: boolean;
+  logoSrc?: string;
   stats?: { label: string; value: string }[];
 }) {
   const imageBlock = (
@@ -91,6 +95,17 @@ function GameShowcase({
         className="object-cover"
         sizes="(max-width: 768px) 100vw, 50vw"
       />
+      {logoSrc && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+          <Image
+            src={logoSrc}
+            alt={`${title} logo`}
+            width={160}
+            height={160}
+            className="object-contain drop-shadow-[0_0_20px_rgba(0,255,255,0.4)]"
+          />
+        </div>
+      )}
       {comingSoon && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <span className="font-mono text-sm font-bold uppercase tracking-[0.3em] text-white/60">
@@ -103,12 +118,22 @@ function GameShowcase({
 
   const textBlock = (
     <div className="flex flex-col justify-center">
-      <h3
-        className="font-mono text-lg font-bold uppercase tracking-widest"
-        style={{ color: accent }}
-      >
-        {title}
-      </h3>
+      <div className="flex items-center gap-2">
+        <h3
+          className="font-mono text-lg font-bold uppercase tracking-widest"
+          style={{ color: accent }}
+        >
+          {title}
+        </h3>
+        {alpha && (
+          <span
+            className="rounded border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest"
+            style={{ borderColor: `${accent}44`, color: accent }}
+          >
+            Alpha
+          </span>
+        )}
+      </div>
       <p className="mt-3 font-mono text-sm leading-relaxed text-gray-400">
         {description}
       </p>
@@ -162,7 +187,7 @@ export default function PortalPage() {
   return (
     <div className="flex flex-1 flex-col">
       {/* ── Hero Banner ── */}
-      <section className="relative flex h-[70vh] max-h-[600px] items-center justify-center overflow-hidden">
+      <section className="relative flex h-[70vh] max-h-[600px] items-center justify-center overflow-hidden bg-[#0a0a0a]">
         <Image
           src="/images/hero-banner.png"
           alt="Cyberpunk cityscape"
@@ -280,6 +305,7 @@ export default function PortalPage() {
           imageAlt="Isometric cyberpunk city grid"
           href="/society"
           accent="#00ff88"
+          alpha
           stats={[
             { label: 'seats', value: `${seatsClaimed}/100` },
             { label: 'holders', value: String(uniqueHolders) },
@@ -294,6 +320,8 @@ export default function PortalPage() {
           href="/fc"
           accent="#00ffff"
           reverse
+          alpha
+          logoSrc="/images/claw-fc-logo.png"
           stats={[{ label: 'matches played', value: String(totalMatches) }]}
         />
 

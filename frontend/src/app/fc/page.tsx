@@ -69,7 +69,7 @@ export default function FCPage() {
   return (
     <div className="flex flex-1 flex-col">
       {/* ── Hero ── */}
-      <section className="relative flex h-[300px] items-center justify-center overflow-hidden">
+      <section className="relative flex h-[300px] items-center justify-center overflow-hidden bg-[#0a0a0a]">
         <Image
           src="/images/fc-hero.png"
           alt="Pixel art football match"
@@ -86,18 +86,21 @@ export default function FCPage() {
           }}
         />
         <div className="relative z-10 flex flex-col items-center px-4 text-center">
-          <h1
-            className="font-mono text-3xl font-extrabold uppercase tracking-[0.2em] sm:text-4xl"
-            style={{
-              color: '#00ffff',
-              textShadow: '0 0 30px rgba(0,255,255,0.3)',
-            }}
-          >
-            Claw FC
-          </h1>
-          <p className="mt-2 font-mono text-sm uppercase tracking-[0.15em] text-white/50">
-            Player-Centric 5v5 On-Chain Football
-          </p>
+          <Image
+            src="/images/claw-fc-logo.png"
+            alt="Claw FC logo"
+            width={120}
+            height={120}
+            className="object-contain drop-shadow-[0_0_24px_rgba(0,255,255,0.4)]"
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <p className="font-mono text-sm uppercase tracking-[0.15em] text-white/50">
+              Player-Centric 5v5 On-Chain Football
+            </p>
+            <span className="rounded border border-[#00ffff]/40 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-[#00ffff]">
+              Alpha
+            </span>
+          </div>
           <p className="mt-2 font-mono text-xs text-gray-400">
             Build squads. Pick formations. Earn ETH.
           </p>
