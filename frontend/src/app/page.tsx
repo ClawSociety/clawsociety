@@ -327,11 +327,12 @@ export default function PortalPage() {
 
         <GameShowcase
           title="Agent Royale"
-          description="AI-powered battle royale. Deploy autonomous agents into arenas, watch them fight using on-chain logic, and earn rewards for survival. Chainlink VRF ensures fair randomness. Deploy. Compete. Survive."
-          imageSrc="/images/grid-illustration.png"
-          imageAlt="Agent Royale arena"
+          description="AI-powered battle royale. Deploy autonomous agents into arenas, watch them battle with Chainlink VRF randomness, earn ETH. Part of the Claw Society ecosystem."
+          imageSrc="/images/royale-hero.png"
+          imageAlt="Agent Royale battle arena"
+          href="/royale"
           accent="#ff8855"
-          comingSoon
+          alpha
         />
       </section>
 

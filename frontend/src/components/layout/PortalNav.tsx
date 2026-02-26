@@ -16,6 +16,7 @@ const GAMES = [
   { name: 'Portal', href: '/', accent: '#00ff88' },
   { name: 'Society', href: '/society', accent: '#00ff88' },
   { name: 'Claw FC', href: '/fc', accent: '#00ffff' },
+  { name: 'Royale', href: '/royale', accent: '#ff8855' },
 ] as const;
 
 export function PortalNav() {
