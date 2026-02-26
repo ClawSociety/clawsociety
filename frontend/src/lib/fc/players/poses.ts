@@ -106,13 +106,13 @@ function pose(overrides: Partial<FramePose>): FramePose {
 }
 
 // ── Idle (4 frames) ──────────────────────────────────────────────
-// Subtle breathing: body shifts ±1px vertically
+// Static pose — no body bounce (was ±1px which looked like jitter at 2x scale)
 
 export const IDLE_FRAMES: FramePose[] = [
   pose({}),                            // neutral
-  pose({ bodyDy: 1 }),                 // breathe in (body drops 1px)
   pose({}),                            // neutral
-  pose({ bodyDy: -1 }),                // breathe out (body rises 1px)
+  pose({}),                            // neutral
+  pose({}),                            // neutral
 ];
 
 // ── Run (6 frames) ───────────────────────────────────────────────
@@ -123,22 +123,22 @@ export const RUN_FRAMES: FramePose[] = [
   // Frame 0: Right foot contact
   pose({
     bodyDy: 0,
-    rightLegDy: -2, rightBootDy: -2,     // right leg forward (up)
+    rightLegDy: -1, rightBootDy: -1,     // right leg forward (up)
     leftLegDy: 1, leftBootDy: 1,         // left leg back (down)
     rightArmDy: 1,                        // right arm back
     leftArmDy: -1,                        // left arm forward
   }),
   // Frame 1: Right foot passing
   pose({
-    bodyDy: -1,
-    rightLegDy: -1, rightBootDy: -1,
+    bodyDy: 0,
+    rightLegDy: 0, rightBootDy: 0,
     leftLegDy: 0, leftBootDy: 0,
     rightArmDy: 0,
     leftArmDy: 0,
   }),
   // Frame 2: Right foot flight
   pose({
-    bodyDy: -2,
+    bodyDy: -1,
     rightLegDy: 1, rightBootDy: 1,       // right leg now behind
     leftLegDy: -1, leftBootDy: -1,       // left leg coming forward
     rightArmDy: -1,
@@ -147,22 +147,22 @@ export const RUN_FRAMES: FramePose[] = [
   // Frame 3: Left foot contact
   pose({
     bodyDy: 0,
-    leftLegDy: -2, leftBootDy: -2,       // left leg forward
+    leftLegDy: -1, leftBootDy: -1,       // left leg forward
     rightLegDy: 1, rightBootDy: 1,       // right leg back
     leftArmDy: 1,
     rightArmDy: -1,
   }),
   // Frame 4: Left foot passing
   pose({
-    bodyDy: -1,
-    leftLegDy: -1, leftBootDy: -1,
+    bodyDy: 0,
+    leftLegDy: 0, leftBootDy: 0,
     rightLegDy: 0, rightBootDy: 0,
     leftArmDy: 0,
     rightArmDy: 0,
   }),
   // Frame 5: Left foot flight
   pose({
-    bodyDy: -2,
+    bodyDy: -1,
     leftLegDy: 1, leftBootDy: 1,         // left leg behind
     rightLegDy: -1, rightBootDy: -1,     // right leg forward
     leftArmDy: -1,

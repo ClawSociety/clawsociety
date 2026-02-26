@@ -17,7 +17,8 @@ function playerPos(team: Team, index: number, formation: Formation): Vec2 {
 }
 
 function goalMouth(team: Team): Vec2 {
-  return team === 'home' ? { x: 0.96, y: 0.5 } : { x: 0.04, y: 0.5 };
+  // Push into the back of the net (beyond pitch boundary)
+  return team === 'home' ? { x: 1.03, y: 0.5 } : { x: -0.03, y: 0.5 };
 }
 
 function midfield(): Vec2 {
@@ -153,6 +154,7 @@ export function generateTimeline(
     ballFrom: midfield(),
     ballTo: midfield(),
     ballArc: 0,
+    intensity: 0.2,
   });
 
   for (let phase = 0; phase < NUM_PHASES; phase++) {
@@ -179,7 +181,7 @@ export function generateTimeline(
 
     events.push({
       time: t,
-      duration: step * 0.8,
+      duration: step * 1.2,
       type: 'pass',
       team: possTeam,
       playerIndex: passer,
@@ -187,6 +189,7 @@ export function generateTimeline(
       ballFrom: passFrom,
       ballTo: passTo,
       ballArc: rng() > 0.7 ? 0.5 : 0,
+      intensity: 0.3,
     });
     ballPos = passTo;
     t += step;
@@ -203,13 +206,14 @@ export function generateTimeline(
 
       events.push({
         time: t,
-        duration: step * 0.7,
+        duration: step * 1.0,
         type: 'dribble',
         team: possTeam,
         playerIndex: dribbler,
         ballFrom: ballPos,
         ballTo: dribbleTo,
         ballArc: 0,
+        intensity: 0.4,
       });
       ballPos = dribbleTo;
     } else {
@@ -218,7 +222,7 @@ export function generateTimeline(
       passTo2.y += rngFloat(rng, -0.06, 0.06);
       events.push({
         time: t,
-        duration: step * 0.8,
+        duration: step * 1.2,
         type: 'pass',
         team: possTeam,
         playerIndex: receiver,
@@ -226,6 +230,7 @@ export function generateTimeline(
         ballFrom: ballPos,
         ballTo: passTo2,
         ballArc: 0,
+        intensity: 0.3,
       });
       ballPos = passTo2;
     }
@@ -238,21 +243,36 @@ export function generateTimeline(
       const tacklePos = { ...ballPos };
       events.push({
         time: t,
-        duration: step * 0.5,
+        duration: step * 0.8,
         type: 'tackle',
         team: oppTeam,
         playerIndex: tackler,
         ballFrom: ballPos,
         ballTo: tacklePos,
         ballArc: 0,
+        intensity: 0.6,
       });
       t += step;
+
+      // Transition: possession change moment (breathing room)
+      events.push({
+        time: t,
+        duration: step * 0.5,
+        type: 'transition',
+        team: oppTeam,
+        playerIndex: tackler,
+        ballFrom: tacklePos,
+        ballTo: tacklePos,
+        ballArc: 0,
+        intensity: 0.2,
+      });
+      t += step * 0.55;
 
       const oppForm = possTeam === 'home' ? awayForm : homeForm;
       const clearTo = playerPos(oppTeam, rngInt(rng, 2, 4), oppForm);
       events.push({
         time: t,
-        duration: step * 0.6,
+        duration: step * 1.0,
         type: 'pass',
         team: oppTeam,
         playerIndex: tackler,
@@ -260,6 +280,7 @@ export function generateTimeline(
         ballFrom: tacklePos,
         ballTo: clearTo,
         ballArc: 0.3,
+        intensity: 0.3,
       });
       ballPos = clearTo;
     } else {
@@ -272,25 +293,41 @@ export function generateTimeline(
         // GOAL
         events.push({
           time: t,
-          duration: step * 0.6,
+          duration: step * 0.9,
           type: 'shot',
           team: possTeam,
           playerIndex: shooter,
           ballFrom: ballPos,
           ballTo: target,
           ballArc: rng() > 0.5 ? 0.4 : 0.1,
+          intensity: 0.8,
         });
-        t += step * 0.6;
+        t += step * 0.9;
 
         events.push({
           time: t,
-          duration: step * 1.2,
+          duration: step * 3.0,
           type: 'goal',
           team: possTeam,
           playerIndex: shooter,
           ballFrom: target,
           ballTo: target,
           ballArc: 0,
+          intensity: 1.0,
+        });
+        t += step * 3.0;
+
+        // Kickoff after goal
+        events.push({
+          time: t,
+          duration: step * 0.3,
+          type: 'kickoff',
+          team: possTeam === 'home' ? 'away' : 'home',
+          playerIndex: 3,
+          ballFrom: midfield(),
+          ballTo: midfield(),
+          ballArc: 0,
+          intensity: 0.2,
         });
         ballPos = midfield();
       } else if (goalInPhase && goalInPhase.team !== possTeam) {
@@ -298,15 +335,16 @@ export function generateTimeline(
         const tackler2 = weightedPickByStat(rng, oppStats, 'defense', [1, 2, 3]);
         events.push({
           time: t,
-          duration: step * 0.4,
+          duration: step * 0.8,
           type: 'tackle',
           team: goalInPhase.team,
           playerIndex: tackler2,
           ballFrom: ballPos,
           ballTo: ballPos,
           ballArc: 0,
+          intensity: 0.6,
         });
-        t += step * 0.5;
+        t += step * 0.85;
 
         const counterStats = goalInPhase.team === 'home' ? homeStats : awayStats;
         const counterForm = goalInPhase.team === 'home' ? homeForm : awayForm;
@@ -316,50 +354,68 @@ export function generateTimeline(
 
         events.push({
           time: t,
-          duration: step * 0.5,
+          duration: step * 0.9,
           type: 'shot',
           team: goalInPhase.team,
           playerIndex: counterShooter,
           ballFrom: playerPos(goalInPhase.team, counterShooter, counterForm),
           ballTo: counterTarget,
           ballArc: 0.3,
+          intensity: 0.8,
         });
-        t += step * 0.5;
+        t += step * 0.9;
 
         events.push({
           time: t,
-          duration: step * 1.0,
+          duration: step * 3.0,
           type: 'goal',
           team: goalInPhase.team,
           playerIndex: counterShooter,
           ballFrom: counterTarget,
           ballTo: counterTarget,
           ballArc: 0,
+          intensity: 1.0,
+        });
+        t += step * 3.0;
+
+        // Kickoff after counter-attack goal
+        events.push({
+          time: t,
+          duration: step * 0.3,
+          type: 'kickoff',
+          team: goalInPhase.team === 'home' ? 'away' : 'home',
+          playerIndex: 3,
+          ballFrom: midfield(),
+          ballTo: midfield(),
+          ballArc: 0,
+          intensity: 0.2,
         });
         ballPos = midfield();
       } else {
         // Shot → save
         events.push({
           time: t,
-          duration: step * 0.6,
+          duration: step * 0.9,
           type: 'shot',
           team: possTeam,
           playerIndex: shooter,
           ballFrom: ballPos,
           ballTo: target,
           ballArc: rng() > 0.6 ? 0.5 : 0.1,
+          intensity: 0.8,
         });
-        t += step * 0.7;
+        t += step * 0.95;
 
         events.push({
           time: t,
-          duration: step * 0.5,
+          duration: step * 0.8,
           type: 'save',
           team: oppTeam,
           playerIndex: 0, // GK
           ballFrom: target,
           ballTo: { x: target.x + (oppTeam === 'home' ? -0.1 : 0.1), y: target.y + rngFloat(rng, -0.1, 0.1) },
           ballArc: 0.2,
+          intensity: 0.7,
         });
         ballPos = playerPos(oppTeam, 0, possTeam === 'home' ? awayForm : homeForm);
       }

@@ -43,7 +43,8 @@ export type EventType =
   | 'tackle'
   | 'shot'
   | 'save'
-  | 'goal';
+  | 'goal'
+  | 'transition';
 
 export interface MatchEvent {
   time: number;       // 0..1 normalized match time
@@ -55,6 +56,7 @@ export interface MatchEvent {
   ballFrom: Vec2;
   ballTo: Vec2;
   ballArc: number;      // 0=flat, 1=high lob
+  intensity?: number;   // 0..1, event importance for cinematic scaling
 }
 
 export interface MatchTimeline {
@@ -97,7 +99,7 @@ export const DEFAULT_AWAY: TeamConfig = {
 export const DEFAULT_CONFIG: MatchRenderConfig = {
   home: DEFAULT_HOME,
   away: DEFAULT_AWAY,
-  matchDuration: 12000,
+  matchDuration: 45000,
   pitchColor: '#0a1a0a',
   grassColor: '#0d2d0d',
   lineColor: 'rgba(255,255,255,0.15)',
@@ -150,6 +152,14 @@ export interface CloudFCMatch {
   status: number; // 0=pending, 1=resolved, 2=cancelled
   createdAt: number;
   totalPool: bigint;
+}
+
+// ─────────────────── NFT Player Identity ─────────────────────
+
+export interface NFTPlayerIdentity {
+  tokenId: number;
+  stats: PlayerStats;
+  tier: 'bronze' | 'silver' | 'gold' | 'diamond';
 }
 
 // ─────────────────── Formations ─────────────────────────────

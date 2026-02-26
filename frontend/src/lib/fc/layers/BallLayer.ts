@@ -4,11 +4,13 @@
 
 import { Container, Graphics, BlurFilter } from 'pixi.js';
 import type { MatchEvent, MatchRenderConfig, Vec2 } from '../types';
+import type { BallState } from '../systems/BallSystem';
 
-const PADDING = 24;
+const PADDING = 60;
 const TRAIL_LENGTH = 20; // ring buffer size
 const TRAIL_MAX_AGE = 600; // ms
-const BALL_RADIUS = 10;
+const BALL_RADIUS = 7;
+const BALL_FEET_OFFSET = 24; // push ball down to feet level (player sprite centered on root)
 
 interface TrailPoint {
   x: number;
@@ -87,20 +89,38 @@ export class BallLayer extends Container {
     g.circle(-4, -4, 2.5).fill({ color: 0xffffff, alpha: 0.7 });
   }
 
-  update(ballPos: Vec2, event: MatchEvent | null, deltaMs: number) {
+  update(ballPos: Vec2, event: MatchEvent | null, deltaMs: number, ballState?: BallState, ballSpeed?: number) {
     const bx = PADDING + ballPos.x * this.pw;
-    const by = PADDING + ballPos.y * this.ph;
+    const by = PADDING + ballPos.y * this.ph + BALL_FEET_OFFSET;
+    const state = ballState ?? 'in_flight';
+    const spd = ballSpeed ?? 0.5;
 
-    // Update trail
-    this.addTrailPoint(bx, by);
-    this.ageTrail(deltaMs);
-    this.drawTrail();
+    // Update trail based on ball state
+    if (state === 'held' || state === 'in_net') {
+      // No trail when held or in net — just age out existing
+      this.ageTrail(deltaMs);
+      this.drawTrail();
+    } else if (state === 'loose') {
+      // Short trail for loose ball
+      this.addTrailPoint(bx, by);
+      this.ageTrail(deltaMs * 1.5); // age faster = shorter trail
+      this.drawTrail();
+    } else {
+      // Full trail for in-flight
+      this.addTrailPoint(bx, by);
+      this.ageTrail(deltaMs);
+      this.drawTrail();
+    }
 
     // Position ball + glow
     this.ballGfx.x = bx;
     this.ballGfx.y = by;
     this.glowGfx.x = bx;
     this.glowGfx.y = by;
+
+    // Glow scales with speed during flight
+    const glowScale = state === 'in_flight' ? 0.8 + spd * 0.8 : 0.6;
+    this.glowGfx.alpha = state === 'in_net' ? 0.15 : 0.3 * glowScale;
 
     // Shadow
     this.shadowGfx.clear();
@@ -114,15 +134,16 @@ export class BallLayer extends Container {
     this.spinAngle += speed * 0.05;
     this.ballGfx.rotation = this.spinAngle;
 
-    // Speed lines on shots/goals
+    // Speed lines: only during in-flight shots/goals
     this.speedLinesGfx.clear();
-    if (event && (event.type === 'shot' || event.type === 'goal')) {
+    if (state === 'in_flight' && event && (event.type === 'shot' || event.type === 'goal')) {
       const edx = event.ballTo.x - event.ballFrom.x;
       const edy = event.ballTo.y - event.ballFrom.y;
       const len = Math.sqrt(edx * edx + edy * edy);
       if (len > 0) {
         const nx = -edx / len;
         const ny = -edy / len;
+        const lineAlpha = 0.3 + spd * 0.4;
         for (let i = 0; i < 3; i++) {
           const offset = (i - 1) * 4;
           const sx = bx + nx * 8 + ny * offset;
@@ -130,7 +151,7 @@ export class BallLayer extends Container {
           const ex = bx + nx * 18 + ny * offset;
           const ey = by + ny * 18 - nx * offset;
           this.speedLinesGfx.moveTo(sx, sy).lineTo(ex, ey)
-            .stroke({ width: 2, color: 0xffd700, alpha: 0.6 });
+            .stroke({ width: 2, color: 0xffd700, alpha: lineAlpha });
         }
       }
     }
