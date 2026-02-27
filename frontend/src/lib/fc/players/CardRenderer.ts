@@ -6,7 +6,7 @@ import type { PlayerStats } from '../types';
 import type { Tier } from '../playerNames';
 import { TIER_COLORS, TIER_LABELS, TIER_STARS } from '../playerNames';
 import { deriveNFTAppearance } from './NFTAppearanceFactory';
-import { bakeFrame, buildMaterialMap } from './PlayerSpriteBuilder';
+import { bakeFrame, buildMaterialMap, type CanvasFactory } from './PlayerSpriteBuilder';
 import { IDLE_FRAMES } from './poses';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -35,13 +35,16 @@ export function statColor(val: number): string {
 
 // ── Main Render Function ──────────────────────────────────────
 
+const defaultCanvasFactory: CanvasFactory = (w, h) => new OffscreenCanvas(w, h);
+
 export function renderCard(
   tokenId: number,
   stats: PlayerStats,
   tier: Tier,
   name: string,
-): OffscreenCanvas {
-  const canvas = new OffscreenCanvas(CARD_W, CARD_H);
+  canvasFactory: CanvasFactory = defaultCanvasFactory,
+) {
+  const canvas = canvasFactory(CARD_W, CARD_H);
   const ctx = canvas.getContext('2d')!;
   const colors = TIER_COLORS[tier];
   const grad = TIER_GRADIENTS[tier];
@@ -77,7 +80,7 @@ export function renderCard(
   // 3. Derive appearance + bake idle frame 0
   const appearance = deriveNFTAppearance(tokenId, stats, tier);
   const materialMap = buildMaterialMap(appearance);
-  const spriteCanvas = bakeFrame(appearance, IDLE_FRAMES[0], materialMap);
+  const spriteCanvas = bakeFrame(appearance, IDLE_FRAMES[0], materialMap, canvasFactory);
 
   // 4. Radial glow behind portrait
   const glowX = CARD_W / 2;
@@ -184,7 +187,8 @@ export function renderCard(
 // ── Helpers ───────────────────────────────────────────────────
 
 function roundRect(
-  ctx: OffscreenCanvasRenderingContext2D,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx: any,
   x: number,
   y: number,
   w: number,

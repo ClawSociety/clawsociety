@@ -68,12 +68,17 @@ function adjust(color: number, factor: number): number {
  * Bake a single animation frame to an OffscreenCanvas.
  * Returns a 24×32 canvas with the character drawn in pixel art.
  */
+export type CanvasFactory = (w: number, h: number) => OffscreenCanvas;
+
+const defaultCanvasFactory: CanvasFactory = (w, h) => new OffscreenCanvas(w, h);
+
 export function bakeFrame(
   app: PlayerAppearance,
   framePose: FramePose,
   materialMap: number[],
-): OffscreenCanvas {
-  const canvas = new OffscreenCanvas(SPRITE_W, SPRITE_H);
+  canvasFactory: CanvasFactory = defaultCanvasFactory,
+) {
+  const canvas = canvasFactory(SPRITE_W, SPRITE_H);
   const ctx = canvas.getContext('2d')!;
 
   // Work with raw pixel data for precise pixel placement
