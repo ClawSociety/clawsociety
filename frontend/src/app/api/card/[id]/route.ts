@@ -11,7 +11,7 @@ import type { PlayerStats } from '@/lib/fc/types';
 const fontPath = join(process.cwd(), 'src/assets/fonts/JetBrainsMono-Bold.ttf');
 GlobalFonts.registerFromPath(fontPath, 'JetBrains Mono');
 
-const PLAYERS_ADDRESS = '0x597f4d2C59eE490006d5e2b8f6F70BAb88e05Ec4' as const;
+const PLAYERS_ADDRESS = (process.env.NEXT_PUBLIC_CLOUDFC_PLAYERS_ADDRESS ?? '0x597f4d2C59eE490006d5e2b8f6F70BAb88e05Ec4') as `0x${string}`;
 
 const client = createPublicClient({
   chain: base,
